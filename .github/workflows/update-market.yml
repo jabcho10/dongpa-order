@@ -1,0 +1,56 @@
+name: 시세 자동 갱신
+
+# 평일 22:07 UTC = 화~토 07:07 KST
+# 미 증시 마감(16:00 ET = 05:00~06:00 KST) 이후이므로 당일 종가가 확정된 뒤 실행된다.
+# GitHub 예약 실행은 부하에 따라 수 분~수십 분 늦을 수 있으나,
+# 다음 주문 마감(다음날 05:00 KST)까지 여유가 충분하다.
+on:
+  schedule:
+    - cron: "7 22 * * 1-5"
+    # 재시도용. Yahoo가 방금 마감된 세션의 종가를 늦게 확정하면 첫 실행이 실패하는데,
+    # 스크립트는 변경이 없으면 종료코드 10으로 빠지므로 중복 실행이 안전하다.
+    - cron: "37 23 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-market
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 의존성 설치
+        run: pip install --quiet yfinance pandas
+
+      - name: 시세 갱신
+        id: market
+        run: |
+          python update_market.py && code=0 || code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "종료코드 $code (0=갱신 10=변경없음 1=실패)"
+
+      - name: 갱신 실패
+        if: steps.market.outputs.code == '1'
+        run: |
+          echo "::error::시세 갱신 실패 - docs/market.json 을 바꾸지 않았습니다. 페이지는 이전 종가를 계속 표시하며, 4일이 지나면 경고 배너가 뜹니다."
+          exit 1
+
+      - name: 커밋 및 배포
+        if: steps.market.outputs.code == '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/market.json
+          git commit -m "시세 갱신 $(date -u +%Y-%m-%d)"
+          git push

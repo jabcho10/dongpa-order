@@ -1,0 +1,579 @@
+<title>동파 주문 지시서</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#f4f6f8; --panel:#ffffff; --sunk:#eceff3; --line:#d6dbe2; --line-2:#c2c9d3;
+  --ink:#161b22; --ink-2:#4b5563; --ink-3:#7a8492;
+  --wafer:#3b4a6b; --wafer-soft:#e5e9f1;
+  --copper:#a35a2e; --copper-soft:#f6e9df;
+  --oxide:#1f6b62; --oxide-soft:#dff0ed;
+  --alert:#9c2f47; --alert-soft:#f9e4e8;
+  --sans:"IBM Plex Sans KR","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+  --mono:"IBM Plex Mono","Consolas",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0e1218; --panel:#161c25; --sunk:#1c232e; --line:#2b3441; --line-2:#3b4553;
+    --ink:#e8ecf1; --ink-2:#a8b3c1; --ink-3:#78838f;
+    --wafer:#93a7cd; --wafer-soft:#222c3d;
+    --copper:#d99460; --copper-soft:#33241a;
+    --oxide:#5cb8ab; --oxide-soft:#152e2b;
+    --alert:#e0798f; --alert-soft:#331a20;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0e1218; --panel:#161c25; --sunk:#1c232e; --line:#2b3441; --line-2:#3b4553;
+  --ink:#e8ecf1; --ink-2:#a8b3c1; --ink-3:#78838f;
+  --wafer:#93a7cd; --wafer-soft:#222c3d;
+  --copper:#d99460; --copper-soft:#33241a;
+  --oxide:#5cb8ab; --oxide-soft:#152e2b;
+  --alert:#e0798f; --alert-soft:#331a20;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);
+  font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1000px;margin:0 auto;padding-inline:18px;padding-block:30px 56px;
+  display:flex;flex-direction:column;gap:26px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+h1,h2,h3{margin:0;text-wrap:balance}
+.eyebrow{font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3)}
+
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;
+  gap:14px;border-bottom:2px solid var(--ink);padding-bottom:14px}
+h1{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.sub{color:var(--ink-2);font-size:12.5px;margin-top:3px}
+.asof{font-family:var(--mono);font-size:12px;color:var(--ink-2);text-align:right}
+.asof b{color:var(--ink);font-weight:600}
+
+.banner{display:flex;gap:10px;align-items:flex-start;border-radius:3px;padding:11px 14px;
+  font-size:12.5px;line-height:1.6;border:1px solid var(--alert);background:var(--alert-soft);
+  color:var(--alert)}
+.banner b{font-family:var(--mono);font-weight:600}
+.banner.warn{border-color:var(--copper);background:var(--copper-soft);color:var(--copper)}
+
+.strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.cell{background:var(--panel);padding:13px 15px;display:flex;flex-direction:column;gap:5px}
+.cell .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3)}
+.cell .v{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums}
+.cell .n{font-size:11px;color:var(--ink-3)}
+.mode{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);
+  font-size:19px;font-weight:600}
+.dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--ink-3)}
+.cell.off .mode{color:var(--copper)} .cell.off .dot{background:var(--copper)}
+.cell.def .mode{color:var(--oxide)} .cell.def .dot{background:var(--oxide)}
+
+section{display:flex;flex-direction:column;gap:12px}
+.shead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px}
+h2{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.hint{font-size:11.5px;color:var(--ink-3)}
+
+.tickets{display:flex;flex-direction:column;gap:8px}
+.tk{display:grid;grid-template-columns:80px 54px 1fr auto;gap:14px;align-items:center;
+  background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line-2);
+  border-radius:3px;padding:12px 15px}
+.tk.buy{border-left-color:var(--copper)}
+.tk.sell{border-left-color:var(--oxide)}
+.tk.moc{border-left-color:var(--alert)}
+.chip{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.06em;
+  padding:4px 0;text-align:center;border-radius:2px;background:var(--sunk);color:var(--ink-3)}
+.tk.buy .chip{background:var(--copper-soft);color:var(--copper)}
+.tk.sell .chip{background:var(--oxide-soft);color:var(--oxide)}
+.tk.moc .chip{background:var(--alert-soft);color:var(--alert)}
+.tk .tier{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--ink-2)}
+.tk .desc{font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums;line-height:1.45}
+.tk .desc em{font-style:normal;font-weight:600}
+.tk .note{font-size:11px;color:var(--ink-3);margin-top:2px}
+.tk .amt{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);text-align:right;
+  white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.5}
+.none{background:var(--sunk);border:1px dashed var(--line-2);border-radius:3px;
+  padding:18px;text-align:center;color:var(--ink-3);font-size:12.5px}
+
+pre.txt{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:3px;
+  padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:11.5px;line-height:1.85;
+  color:var(--ink);font-variant-numeric:tabular-nums}
+
+.tscroll{overflow-x:auto;border:1px solid var(--line);border-radius:3px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:500;background:var(--sunk);border-bottom:1px solid var(--line-2)}
+th:first-child,td:first-child{text-align:left}
+tbody tr:last-child td{border-bottom:none}
+tr.empty td{color:var(--ink-3)}
+tr.due td{background:var(--alert-soft)}
+td.tg .tgt{font-family:var(--mono);font-weight:600;color:var(--oxide)}
+tr.due td.tg .tgt{color:var(--alert)}
+td.n,th.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.badge{font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 6px;border-radius:2px;
+  background:var(--copper-soft);color:var(--copper);margin-left:4px}
+
+input,select,button{font-family:var(--mono);font-size:13px;color:var(--ink);
+  background:var(--panel);border:1px solid var(--line-2);border-radius:2px;padding:5px 7px}
+input[type=number],input[type=date]{font-variant-numeric:tabular-nums}
+td input,td select{width:100%;min-width:70px;text-align:right;padding:4px 6px}
+td select{text-align:left;min-width:132px}
+input[type=checkbox]{width:15px;height:15px;accent-color:var(--wafer);padding:0;cursor:pointer;
+  min-width:0}
+input:disabled,select:disabled{background:var(--sunk);color:var(--ink-3)}
+:focus-visible{outline:2px solid var(--wafer);outline-offset:1px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;
+  background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:15px}
+.f{display:flex;flex-direction:column;gap:5px}
+.f label{font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--ink-3)}
+.acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{cursor:pointer;font-weight:500;padding:6px 11px;background:var(--sunk)}
+button:hover{border-color:var(--wafer);color:var(--wafer)}
+.save{font-family:var(--mono);font-size:10.5px;color:var(--ink-3)}
+
+.ref{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.rcol{background:var(--panel);padding:15px 17px;display:flex;flex-direction:column;gap:9px}
+.rcol h3{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:500}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;
+  border-bottom:1px dotted var(--line);padding-bottom:5px}
+.kv:last-child{border-bottom:none}
+.kv span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums;
+  font-weight:500;white-space:nowrap}
+.kv.fixed span:last-child{color:var(--wafer);font-weight:600}
+ol.seq{margin:0;padding-left:20px;font-size:12px;color:var(--ink-2);line-height:1.75}
+ol.seq li::marker{font-family:var(--mono);color:var(--ink-3);font-size:11px}
+footer{font-size:11.5px;color:var(--ink-3);border-top:1px solid var(--line);padding-top:14px;
+  line-height:1.75}
+footer b{color:var(--ink-2);font-weight:600}
+@media (max-width:640px){
+  .strip{grid-template-columns:repeat(2,1fr)}
+  .ref{grid-template-columns:1fr}
+  .tk{grid-template-columns:80px 54px 1fr;row-gap:8px}
+  .tk .amt{grid-column:1/-1;text-align:left}
+  h1{font-size:22px}
+  .asof{text-align:left}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">SOXL · 7티어 순환 · 확정 규칙</div>
+      <h1>동파 주문 지시서</h1>
+      <div class="sub">확정 규칙으로 당일 LOC·MOC 주문을 산출합니다. 수수료는 매수·매도 각각 0.07% 확정.</div>
+    </div>
+    <div class="asof">
+      주문일 <b id="hOrder">—</b><br>
+      기준 종가일 <b id="hBase">—</b>
+    </div>
+  </header>
+
+  <div class="banner" id="banner" hidden></div>
+
+  <div class="strip">
+    <div class="cell" id="cMode">
+      <div class="k">당일 모드</div>
+      <div class="mode"><span class="dot"></span><span id="vMode">—</span></div>
+      <div class="n" id="nMode">—</div>
+    </div>
+    <div class="cell">
+      <div class="k">전일 SOXL 종가</div>
+      <div class="v" id="vPrev">—</div>
+      <div class="n">주문 산출 기준가</div>
+    </div>
+    <div class="cell">
+      <div class="k">LOC 매수 상한</div>
+      <div class="v" id="vCap">—</div>
+      <div class="n" id="nCap">—</div>
+    </div>
+    <div class="cell">
+      <div class="k">QQQ 주간 RSI(14)</div>
+      <div class="v" id="vRsi">—</div>
+      <div class="n" id="nRsi">—</div>
+    </div>
+  </div>
+
+  <section>
+    <div class="shead">
+      <h2>주문 지시</h2>
+      <div class="hint">장 마감 동시호가 대상 · 매도 처리 후 매수 체결 판단</div>
+    </div>
+    <div class="tickets" id="tickets"></div>
+  </section>
+
+  <section>
+    <div class="shead">
+      <h2>주문 전문</h2>
+      <div class="hint">기록·전달용 — 그대로 선택해 복사</div>
+    </div>
+    <pre class="txt" id="plain">—</pre>
+  </section>
+
+  <section>
+    <div class="shead">
+      <h2>티어 현황</h2>
+      <div class="hint">보유 티어의 수량·매수가·매수 모드·보유일수를 입력하면 주문이 갱신됩니다</div>
+    </div>
+    <div class="tscroll">
+      <table>
+        <thead><tr>
+          <th>티어</th><th class="n">비중</th><th class="n">배정액</th><th>보유</th>
+          <th class="n">수량</th><th class="n">매수가</th><th>매수 모드</th>
+          <th class="n">보유일</th><th class="n">목표가</th><th class="n">청산까지</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="acts">
+      <button type="button" id="bNext">보유일수 +1</button>
+      <button type="button" id="bClear">전 티어 비우기 (새 사이클)</button>
+      <span class="save" id="saveState">예시 상태 — 실제 보유 내역으로 바꿔 사용하세요</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead">
+      <h2>계좌 · 시세</h2>
+      <div class="hint" id="feedNote">—</div>
+    </div>
+    <div class="fields">
+      <div class="f"><label for="iSeed">사이클 시작 가상 시드 ($)</label>
+        <input type="number" id="iSeed" step="100" min="0"></div>
+      <div class="f"><label for="iCash">실제 주문 가능 현금 ($)</label>
+        <input type="number" id="iCash" step="100" min="0"></div>
+      <div class="f"><label for="iPrev">전일 SOXL 종가 ($)</label>
+        <input type="number" id="iPrev" step="0.01" min="0"></div>
+      <div class="f"><label for="iRsi">QQQ 주간 RSI(14)</label>
+        <input type="number" id="iRsi" step="0.0001" min="0" max="100"></div>
+      <div class="f"><label for="iOrder">주문일</label><input type="date" id="iOrder"></div>
+      <div class="f"><label for="iBase">기준 종가일</label><input type="date" id="iBase"></div>
+    </div>
+    <div class="acts">
+      <button type="button" id="bRevert">자동 갱신값으로 되돌리기</button>
+      <span class="save" id="feedState">—</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead"><h2>확정값 참조</h2></div>
+    <div class="ref">
+      <div class="rcol">
+        <h3>모드별 파라미터</h3>
+        <div class="kv"><span>공세 LOC 매수 상한</span><span>전일 종가 +5%</span></div>
+        <div class="kv"><span>공세 LOC 목표수익률</span><span>매수가 +2.5%</span></div>
+        <div class="kv"><span>공세 MOC 강제청산</span><span>매수 후 7영업일째</span></div>
+        <div class="kv"><span>수비 LOC 매수 상한</span><span>전일 종가 +3%</span></div>
+        <div class="kv"><span>수비 LOC 목표수익률</span><span>매수가 +0.2%</span></div>
+        <div class="kv"><span>수비 MOC 강제청산</span><span>매수 후 30영업일째</span></div>
+        <div class="kv"><span>모드 기준</span><span>RSI ≥ 50 → 공세</span></div>
+      </div>
+      <div class="rcol">
+        <h3>고정 상수</h3>
+        <div class="kv fixed"><span>매수 수수료</span><span>0.07%</span></div>
+        <div class="kv fixed"><span>매도 수수료</span><span>0.07%</span></div>
+        <div class="kv"><span>티어 비중</span><span>18·16·15·14·13·12·12%</span></div>
+        <div class="kv"><span>이익 / 손실 복리율</span><span>60% / 30%</span></div>
+        <div class="kv"><span>하루 신규 매수</span><span>최대 1개 티어</span></div>
+        <div class="kv"><span>주문 단위</span><span>정수 주식 (floor)</span></div>
+        <div class="kv"><span>당일 매도 티어 재매수</span><span>다음 영업일부터</span></div>
+      </div>
+      <div class="rcol" style="grid-column:1/-1">
+        <h3>일별 처리 순서</h3>
+        <ol class="seq">
+          <li>해당 주의 QQQ 주간 RSI(14)로 당일 모드를 확인한다.</li>
+          <li>거래일 시작 시점의 빈 티어 중 가장 낮은 번호를 신규 매수 대상으로 정한다.</li>
+          <li>전 거래일 종가와 당일 모드로 LOC 매수 상한 및 정수 주문 수량을 계산한다.</li>
+          <li>기존 보유 티어의 LOC 목표 매도 및 MOC 강제청산을 당일 종가로 처리한다.</li>
+          <li>3단계에서 준비한 LOC 매수 주문의 체결 여부를 당일 종가로 판단한다.</li>
+          <li>장 마감 후 모든 티어가 비었으면 사이클 손익을 확정하고 가상 시드를 갱신한다.</li>
+          <li>현금과 보유 포지션의 종가 평가액을 합산하여 일별 총자산을 기록한다.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <b>산출 근거</b> — 각 포지션의 목표수익률과 강제청산 기간은 매수 체결일 모드로 확정되며, 이후 시장 모드가 바뀌어도 변경하지 않습니다.
+    LOC 매수는 당일 종가가 상한 이하일 때만 체결되고, 체결가는 상한가가 아닌 <b>당일 종가</b>입니다.
+    주문 수량은 미래 종가를 알 수 없으므로 상한가와 매수 수수료를 기준으로 <b>floor</b> 계산합니다.
+    매수 체결 당일에는 해당 포지션을 매도하지 않으며, 당일 매도된 티어는 다음 영업일부터 다시 빈 티어로 씁니다.
+    이 페이지는 확정 규칙의 주문 산출 보조자료이며, 투자 판단과 주문 집행의 책임은 이용자에게 있습니다.
+  </footer>
+</div>
+
+<script>
+/* 시세는 같은 폴더의 market.json 에서 읽습니다 — GitHub Actions가 매 거래일 갱신합니다.
+   아래 값은 market.json 을 읽지 못했을 때 쓰는 내장 대체값입니다. */
+var MARKET={
+  prev:115.76, rsi:58.6590,
+  baseDate:"2026-09-10", orderDate:"2026-09-11", weekEnd:"2026-09-04",
+  updated:"2026-09-11 08:47 KST"
+};
+var feedSrc="내장 대체값";
+
+var W=[.18,.16,.15,.14,.13,.12,.12];
+var DEFAULT={
+  vseed:100000, cash:58000,
+  tiers:[
+    {on:true,  qty:147, px:104.20, mode:"off", held:7},
+    {on:true,  qty:152, px:105.60, mode:"off", held:4},
+    {on:true,  qty:141, px:107.10, mode:"def", held:2},
+    {on:false, qty:0,   px:0,      mode:"off", held:0},
+    {on:false, qty:0,   px:0,      mode:"off", held:0},
+    {on:false, qty:0,   px:0,      mode:"off", held:0},
+    {on:false, qty:0,   px:0,      mode:"off", held:0}
+  ]};
+var S=JSON.parse(JSON.stringify(DEFAULT)), touched=false, override=false;
+S.prev=MARKET.prev; S.rsi=MARKET.rsi;
+S.baseDate=MARKET.baseDate; S.orderDate=MARKET.orderDate;
+
+function P(n,d){ d=(d===undefined)?2:d;
+  return "$"+(+n).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function N(n){ return (+n).toLocaleString("en-US"); }
+function $(id){ return document.getElementById(id); }
+function pad(s,w){ s=String(s); while(s.length<w) s=" "+s; return s; }
+
+function calc(){
+  var off=S.rsi>=50;
+  var cap=S.prev*(off?1.05:1.03);
+  var alloc=W.map(function(w){return S.vseed*w;});
+  var target=-1;
+  for(var i=0;i<7;i++){ if(!S.tiers[i].on){ target=i; break; } }
+  var qty=0, budget=0;
+  if(target>=0){
+    budget=Math.min(alloc[target],S.cash);
+    qty=budget>0?Math.floor(budget/(cap*1.0007)):0;
+  }
+  var rows=S.tiers.map(function(t,i){
+    var tOff=(t.mode==="off"), fd=tOff?7:30;
+    return { i:i, on:t.on, qty:t.qty, px:t.px, held:t.held, tOff:tOff, fd:fd,
+      alloc:alloc[i],
+      tgt:(t.on&&t.px>0)?t.px*(tOff?1.025:1.002):0,
+      left:t.on?(fd-t.held):null,
+      due:(t.on&&t.held>=fd),
+      sellable:(t.on&&t.held>=1&&t.held<fd) };
+  });
+  return {off:off,cap:cap,alloc:alloc,target:target,qty:qty,budget:budget,rows:rows};
+}
+
+function render(){
+  var c=calc();
+  $("hOrder").textContent=S.orderDate||"—";
+  $("hBase").textContent=S.baseDate||"—";
+  $("cMode").className="cell "+(c.off?"off":"def");
+  $("vMode").textContent=c.off?"공세모드":"수비모드";
+  $("nMode").textContent=c.off?"목표 +2.5% · 7영업일 청산":"목표 +0.2% · 30영업일 청산";
+  $("vPrev").textContent=P(S.prev);
+  $("vCap").textContent=P(c.cap);
+  $("nCap").textContent="전일 종가 "+(c.off?"+5%":"+3%");
+  $("vRsi").textContent=(+S.rsi).toFixed(2);
+  $("nRsi").textContent=(c.off?"≥ 50 → 공세":"< 50 → 수비")+
+    (MARKET.weekEnd?" · "+MARKET.weekEnd+" 종가 기준":"");
+
+  /* 시세 신선도 — 자동 갱신이 밀리면 낡은 종가로 주문하는 사고를 막습니다 */
+  var age=null;
+  if(MARKET.baseDate){
+    age=Math.floor((new Date(new Date().toDateString())-new Date(MARKET.baseDate+"T00:00:00"))/864e5);
+  }
+  var b=$("banner");
+  if(override){
+    b.hidden=false; b.className="banner warn";
+    b.innerHTML="<span>시세를 수동으로 바꿨습니다. 이 값은 <b>저장되지 않으며</b> 다음 자동 갱신 때 되돌아갑니다. "+
+      "티어 현황과 시드·현금은 정상 저장됩니다.</span>";
+  } else if(age!==null&&age>4){
+    b.hidden=false; b.className="banner";
+    b.innerHTML="<span>기준 종가일이 <b>"+age+"일</b> 지났습니다 ("+MARKET.baseDate+
+      "). 자동 갱신이 실행되지 않았을 수 있으니 종가를 확인하고 주문하세요.</span>";
+  } else { b.hidden=true; }
+
+  $("feedNote").textContent="시세·날짜는 매 거래일 자동 갱신 (저장되지 않음) · 시드·현금은 저장됨";
+  $("feedState").textContent=feedSrc+" · 갱신 "+(MARKET.updated||"—")+
+    (age!==null?" · 종가 경과 "+age+"일":"");
+
+  var tk=[], i;
+  c.rows.forEach(function(r){ if(!r.due) return;
+    tk.push('<div class="tk moc"><div class="chip">청산 MOC</div><div class="tier">티어 '+(r.i+1)+'</div>'+
+      '<div><div class="desc"><em>'+N(r.qty)+'주</em> 전량 종가 청산</div>'+
+      '<div class="note">보유 '+r.held+'일 = '+r.fd+'영업일 도달 · 목표가 무관 강제청산</div></div>'+
+      '<div class="amt">매수가 '+P(r.px)+'</div></div>');
+  });
+  c.rows.forEach(function(r){ if(!r.sellable) return;
+    tk.push('<div class="tk sell"><div class="chip">매도 LOC</div><div class="tier">티어 '+(r.i+1)+'</div>'+
+      '<div><div class="desc"><em>'+N(r.qty)+'주</em> 지정 <em>'+P(r.tgt)+'</em></div>'+
+      '<div class="note">당일 종가 ≥ '+P(r.tgt)+'일 때 종가 체결 · '+(r.tOff?"공세":"수비")+
+      ' 매수분 · 강제청산까지 '+r.left+'영업일</div></div>'+
+      '<div class="amt">매수가 '+P(r.px)+'</div></div>');
+  });
+  if(c.target>=0&&c.qty>0){
+    tk.push('<div class="tk buy"><div class="chip">매수 LOC</div><div class="tier">티어 '+(c.target+1)+'</div>'+
+      '<div><div class="desc"><em>'+N(c.qty)+'주</em> 상한 <em>'+P(c.cap)+'</em></div>'+
+      '<div class="note">당일 종가 ≤ '+P(c.cap)+'일 때만 체결 · 체결가는 당일 종가 · 목표가는 체결 후 확정</div></div>'+
+      '<div class="amt">배정 '+P(c.budget,0)+'<br>최대소요 '+P(c.qty*c.cap*1.0007,0)+'</div></div>');
+  }
+  c.rows.forEach(function(r){ if(!(r.on&&r.held===0)) return;
+    tk.push('<div class="tk"><div class="chip">대기</div><div class="tier">티어 '+(r.i+1)+'</div>'+
+      '<div><div class="desc">'+N(r.qty)+'주 매도 주문 없음</div>'+
+      '<div class="note">매수 체결 당일에는 매도하지 않음 · 다음 영업일부터 LOC 매도 판단</div></div>'+
+      '<div class="amt">매수가 '+P(r.px)+'</div></div>');
+  });
+  if(!tk.length){
+    tk.push('<div class="none">'+(c.target<0
+      ? '7개 티어 모두 보유 중이며 매도·청산 대상도 없습니다 — 당일 주문 없음'
+      : '주문 수량이 0주로 계산되어 당일 매수하지 않습니다 — 배정액과 주문 가능 현금을 확인하세요')+'</div>');
+  }
+  $("tickets").innerHTML=tk.join("");
+
+  var L=[];
+  L.push("동파 주문 지시서 · "+S.orderDate+" · "+(c.off?"공세모드":"수비모드")+
+         " (QQQ 주간RSI "+(+S.rsi).toFixed(2)+")");
+  L.push("기준 종가일 "+S.baseDate+" · 전일 종가 "+P(S.prev)+" · LOC 매수 상한 "+P(c.cap));
+  L.push("");
+  var n0=L.length;
+  c.rows.forEach(function(r){ if(r.due)
+    L.push("[청산] MOC  티어"+(r.i+1)+"  "+pad(N(r.qty),5)+"주  종가 전량청산 (보유 "+r.held+"일)"); });
+  c.rows.forEach(function(r){ if(r.sellable)
+    L.push("[매도] LOC  티어"+(r.i+1)+"  "+pad(N(r.qty),5)+"주  지정 "+P(r.tgt)); });
+  if(c.target>=0&&c.qty>0)
+    L.push("[매수] LOC  티어"+(c.target+1)+"  "+pad(N(c.qty),5)+"주  상한 "+P(c.cap));
+  if(L.length===n0) L.push("당일 주문 없음");
+  L.push("");
+  L.push("수수료 매수·매도 각 0.07% · 정수 주문 · 하루 신규 매수 최대 1개 티어");
+  $("plain").textContent=L.join("\n");
+
+  $("tbody").innerHTML=c.rows.map(function(r){
+    return '<tr class="'+(!r.on?"empty":(r.due?"due":""))+'">'+
+      '<td>티어 '+(r.i+1)+(c.target===r.i?'<span class="badge">매수대상</span>':"")+'</td>'+
+      '<td class="n">'+(W[r.i]*100).toFixed(0)+'%</td>'+
+      '<td class="n">'+P(r.alloc,0)+'</td>'+
+      '<td><input type="checkbox" id="t'+r.i+'on" data-i="'+r.i+'" data-f="on" '+
+        (r.on?"checked":"")+' aria-label="티어 '+(r.i+1)+' 보유"></td>'+
+      '<td class="n"><input type="number" id="t'+r.i+'qty" data-i="'+r.i+'" data-f="qty" min="0" step="1" value="'+
+        r.qty+'"'+(r.on?"":" disabled")+' aria-label="티어 '+(r.i+1)+' 수량"></td>'+
+      '<td class="n"><input type="number" id="t'+r.i+'px" data-i="'+r.i+'" data-f="px" min="0" step="0.01" value="'+
+        r.px+'"'+(r.on?"":" disabled")+' aria-label="티어 '+(r.i+1)+' 매수가"></td>'+
+      '<td><select id="t'+r.i+'mode" data-i="'+r.i+'" data-f="mode"'+(r.on?"":" disabled")+
+        ' aria-label="티어 '+(r.i+1)+' 매수 모드">'+
+        '<option value="off"'+(r.tOff?" selected":"")+'>공세 +2.5% / 7일</option>'+
+        '<option value="def"'+(!r.tOff?" selected":"")+'>수비 +0.2% / 30일</option></select></td>'+
+      '<td class="n"><input type="number" id="t'+r.i+'held" data-i="'+r.i+'" data-f="held" min="0" step="1" value="'+
+        r.held+'"'+(r.on?"":" disabled")+' aria-label="티어 '+(r.i+1)+' 보유일수"></td>'+
+      '<td class="n tg">'+((r.on&&r.tgt)?'<span class="tgt">'+P(r.tgt)+'</span>':"—")+'</td>'+
+      '<td class="n">'+(r.on?(r.due?"오늘 청산":r.left+"영업일"):"—")+'</td></tr>';
+  }).join("");
+
+  Array.prototype.forEach.call($("tbody").querySelectorAll("input,select"),function(el){
+    var ev=(el.type==="checkbox"||el.tagName==="SELECT")?"change":"input";
+    el.addEventListener(ev,function(e){
+      var i=+e.target.dataset.i, f=e.target.dataset.f, id=e.target.id;
+      var pos=(ev==="input"&&e.target.setSelectionRange)?null:null;
+      if(f==="on"){
+        S.tiers[i].on=e.target.checked;
+        if(!e.target.checked){ S.tiers[i].qty=0; S.tiers[i].px=0; S.tiers[i].held=0; }
+      } else if(f==="mode"){ S.tiers[i].mode=e.target.value; }
+      else { S.tiers[i][f]=+e.target.value||0; }
+      mark(); render();
+      var back=document.getElementById(id);
+      if(back&&ev==="input") back.focus();
+    });
+  });
+}
+
+function mark(){ touched=true; $("saveState").textContent="저장 중…"; save(); }
+function syncFields(){
+  $("iSeed").value=S.vseed; $("iCash").value=S.cash; $("iPrev").value=S.prev;
+  $("iRsi").value=S.rsi; $("iOrder").value=S.orderDate; $("iBase").value=S.baseDate;
+}
+/* 저장되는 입력: 시드·현금 */
+[["iSeed","vseed"],["iCash","cash"]].forEach(function(p){
+  $(p[0]).addEventListener("input",function(e){ S[p[1]]=+e.target.value||0; mark(); render(); });
+});
+/* 저장되지 않는 입력: 시세·날짜 — 다음 자동 갱신 때 되돌아갑니다 */
+[["iPrev","prev"],["iRsi","rsi"]].forEach(function(p){
+  $(p[0]).addEventListener("input",function(e){
+    S[p[1]]=+e.target.value||0; override=true; render(); });
+});
+[["iOrder","orderDate"],["iBase","baseDate"]].forEach(function(p){
+  $(p[0]).addEventListener("change",function(e){
+    S[p[1]]=e.target.value; override=true; render(); });
+});
+$("bRevert").addEventListener("click",function(){
+  S.prev=MARKET.prev; S.rsi=MARKET.rsi;
+  S.baseDate=MARKET.baseDate; S.orderDate=MARKET.orderDate;
+  override=false; syncFields(); render();
+});
+$("bNext").addEventListener("click",function(){
+  S.tiers.forEach(function(t){ if(t.on) t.held++; });
+  mark(); render();
+});
+$("bClear").addEventListener("click",function(){
+  S.tiers=S.tiers.map(function(){ return {on:false,qty:0,px:0,mode:"off",held:0}; });
+  mark(); render();
+});
+
+var DB=null, timer=null, LS="dongpa-order-sheet-v1";
+function save(){
+  clearTimeout(timer);
+  timer=setTimeout(function(){
+    try{ localStorage.setItem(LS,JSON.stringify(userState())); }catch(e){}
+    if(DB){
+      DB.doc("state/current").set(userState()).then(function(){
+        $("saveState").textContent="저장됨 · 이 아티팩트에 보관";
+      },function(){ $("saveState").textContent="저장됨 · 이 브라우저에 보관"; });
+    } else { $("saveState").textContent="저장됨 · 이 브라우저에 보관"; }
+  },400);
+}
+/* 저장 대상은 사용자 상태(시드·현금·티어)뿐입니다. 시세·날짜는 항상 MARKET 블록에서
+   읽으므로, 자동 갱신된 종가가 예전에 저장된 값에 덮이지 않습니다. */
+function adopt(o){
+  if(!o||!Array.isArray(o.tiers)||o.tiers.length!==7) return false;
+  ["vseed","cash"].forEach(function(k){ if(typeof o[k]==="number") S[k]=o[k]; });
+  S.tiers=o.tiers.map(function(t){ return {on:!!t.on,qty:+t.qty||0,px:+t.px||0,
+    mode:(t.mode==="def"?"def":"off"),held:+t.held||0}; });
+  return true;
+}
+function userState(){ return {vseed:S.vseed, cash:S.cash, tiers:S.tiers}; }
+try{
+  var raw=localStorage.getItem(LS);
+  if(raw&&adopt(JSON.parse(raw))) touched=true;
+}catch(e){}
+syncFields(); render();
+if(touched) $("saveState").textContent="저장됨 · 이 브라우저에 보관";
+
+/* market.json 을 읽어 시세를 갱신합니다. 못 읽으면 내장 대체값으로 그대로 동작하므로
+   페이지는 어떤 경우에도 주문을 산출합니다. 수동 수정 중이면 덮어쓰지 않습니다. */
+(function(){
+  if(!window.fetch) return;
+  fetch("market.json?t="+Date.now(),{cache:"no-store"}).then(function(r){
+    return r.ok?r.json():null;
+  }).then(function(m){
+    if(!m||typeof m.prev!=="number"||typeof m.rsi!=="number") return;
+    MARKET=m; feedSrc="market.json";
+    if(!override){
+      S.prev=m.prev; S.rsi=m.rsi;
+      if(m.baseDate) S.baseDate=m.baseDate;
+      if(m.orderDate) S.orderDate=m.orderDate;
+      syncFields();
+    }
+    render();
+  }).catch(function(){});
+})();
+
+(function(){
+  if(!(window.claude&&window.claude.use)) return;
+  window.claude.use("db").then(function(d){
+    if(!d) return; DB=d;
+    return DB.doc("state/current").get().then(function(snap){
+      if(snap&&snap.exists&&adopt(snap.data())){
+        syncFields(); render();
+        $("saveState").textContent="저장됨 · 이 아티팩트에 보관";
+      } else if(touched){
+        return DB.doc("state/current").set(userState()).then(function(){
+          $("saveState").textContent="저장됨 · 이 아티팩트에 보관";
+        });
+      }
+    });
+  }).catch(function(){});
+})();
+</script>
