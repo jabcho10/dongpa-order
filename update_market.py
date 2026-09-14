@@ -1,4 +1,4 @@
-"""동파 주문 지시서의 시세 파일(docs/market.json) 갱신
+"""동파 주문 지시서의 시세 파일(market.json) 갱신
 
   - 전일 SOXL 종가  : 가장 최근 거래일 종가
   - QQQ 주간 RSI(14): Adj Close -> 주별 마지막 거래일 -> Wilder 평활
@@ -12,7 +12,7 @@
 import io, json, os, sys, time
 from datetime import datetime, timedelta, timezone
 
-OUT = os.path.join("docs", "market.json")
+OUT = "market.json"
 N = 14
 KST = timezone(timedelta(hours=9))
 
@@ -132,7 +132,6 @@ def main():
             print("변경 없음")
             return 10
 
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with io.open(OUT, "w", encoding="utf-8", newline="\n") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
         f.write("\n")

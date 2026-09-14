@@ -9,8 +9,8 @@ SOXL 7티어 순환 매매(동파 전략)의 당일 LOC·MOC 주문을 산출하
 
 | 파일 | 용도 |
 |---|---|
-| `docs/index.html` | 주문 지시서 (GitHub Pages가 서빙) |
-| `docs/market.json` | 시세 — 워크플로가 매 거래일 갱신 |
+| `index.html` | 주문 지시서 (GitHub Pages가 서빙) |
+| `market.json` | 시세 — 워크플로가 매 거래일 갱신 |
 | `update_market.py` | 시세 산출 및 `market.json` 갱신 |
 | `.github/workflows/update-market.yml` | 화~토 07:07 KST 예약 실행 |
 
@@ -24,7 +24,7 @@ SOXL 7티어 순환 매매(동파 전략)의 당일 LOC·MOC 주문을 산출하
 
 ```
 SOXL 최근 종가  ─┐
-QQQ 주간 RSI(14) ┴─> docs/market.json ─> 커밋 ─> Pages 반영
+QQQ 주간 RSI(14) ┴─> market.json ─> 커밋 ─> Pages 반영
 ```
 
 종료코드로 상태를 구분한다. **0** 갱신함(커밋) / **10** 변경 없음(아무것도 안 함) / **1** 실패.
@@ -60,7 +60,8 @@ QQQ 주간 RSI(14) ┴─> docs/market.json ─> 커밋 ─> Pages 반영
 ## 최초 설정
 
 1. 이 디렉터리를 **공개** 리포지토리로 push
-2. Settings → Pages → Source: **Deploy from a branch**, Branch: `main` / `/docs`
+2. Settings → Pages → Source: **Deploy from a branch**, Branch: `main` / `/ (root)`
+   — 사이트 파일은 리포지토리 루트에 있다. `/docs` 로 두면 루트 URL이 README를 보여준다.
 3. Actions 탭 → `시세 자동 갱신` → Run workflow 로 동작 확인
 
 전략 확정 규칙과 백테스트 엔진은 별도 비공개 리포지토리에 있다.

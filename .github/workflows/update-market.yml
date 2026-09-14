@@ -43,7 +43,7 @@ jobs:
       - name: 갱신 실패
         if: steps.market.outputs.code == '1'
         run: |
-          echo "::error::시세 갱신 실패 - docs/market.json 을 바꾸지 않았습니다. 페이지는 이전 종가를 계속 표시하며, 4일이 지나면 경고 배너가 뜹니다."
+          echo "::error::시세 갱신 실패 - market.json 을 바꾸지 않았습니다. 페이지는 이전 종가를 계속 표시하며, 4일이 지나면 경고 배너가 뜹니다."
           exit 1
 
       - name: 커밋 및 배포
@@ -51,6 +51,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/market.json
+          git add market.json
           git commit -m "시세 갱신 $(date -u +%Y-%m-%d)"
           git push
