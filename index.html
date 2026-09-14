@@ -1,4 +1,15 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f4f6f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1218" media="(prefers-color-scheme: dark)">
+<meta name="description" content="SOXL 7티어 순환 매매(동파 전략)의 당일 LOC·MOC 주문 지시서">
 <title>동파 주문 지시서</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 :root{
@@ -30,8 +41,11 @@
   --alert:#e0798f; --alert-soft:#331a20;
 }
 *{box-sizing:border-box}
-body{background:var(--paper);color:var(--ink);font-family:var(--sans);
-  font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+html{color-scheme:light dark;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+  font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  overflow-wrap:break-word}
+[hidden]{display:none!important}
 .wrap{max-width:1000px;margin:0 auto;padding-inline:18px;padding-block:30px 56px;
   display:flex;flex-direction:column;gap:26px}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
@@ -146,16 +160,82 @@ ol.seq li::marker{font-family:var(--mono);color:var(--ink-3);font-size:11px}
 footer{font-size:11.5px;color:var(--ink-3);border-top:1px solid var(--line);padding-top:14px;
   line-height:1.75}
 footer b{color:var(--ink-2);font-weight:600}
+/* ── 좁은 화면: 티어 현황 표를 가로 스크롤 대신 티어별 카드로 바꾼다 ──
+   표는 min-width 760px 이라 폰에서는 어차피 읽을 수 없다. 같은 DOM을 유지한 채
+   표시만 카드로 돌리므로 렌더 로직과 입력 이벤트는 그대로 쓴다. */
+@media (max-width:860px){
+  .tscroll{overflow:visible;border:none;background:none;border-radius:0}
+  table{display:block;width:100%;min-width:0}
+  thead{display:none}
+  tbody{display:flex;flex-direction:column;gap:10px}
+  tr{display:grid;grid-template-columns:1fr 1fr;gap:11px 12px;
+    background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line-2);
+    border-radius:3px;padding:13px 14px}
+  tr.empty{border-left-color:var(--line)}
+  tr.due{border-left-color:var(--alert);background:var(--alert-soft)}
+  tr.due td{background:none}
+  td{display:flex;flex-direction:column;gap:4px;padding:0;border-bottom:none;
+    text-align:left;white-space:normal}
+  td::before{content:attr(data-label);font-family:var(--mono);font-size:10px;
+    letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+  td input,td select{width:100%;min-width:0}
+  td select{min-width:0}
+
+  .c-tier{order:1;grid-column:1}
+  .c-on{order:2;grid-column:2}
+  .c-tier,.c-on{flex-direction:row;align-items:center;gap:8px;
+    border-bottom:1px solid var(--line);padding-bottom:10px}
+  .c-tier{font-size:14px;font-weight:600}
+  .c-tier::before{display:none}
+  .c-on{justify-content:flex-end}
+  .c-w{order:3} .c-alloc{order:4}
+  .c-qty{order:5} .c-px{order:6}
+  .c-mode{order:7;grid-column:1/-1}
+  .c-held{order:8} .c-left{order:9}
+  .c-tgt{order:10;grid-column:1/-1;flex-direction:row;align-items:baseline;
+    justify-content:space-between;border-top:1px solid var(--line);padding-top:10px}
+  tr.empty .c-qty,tr.empty .c-px,tr.empty .c-mode,tr.empty .c-held{opacity:.5}
+}
+
+/* ── 폰 ── */
 @media (max-width:640px){
+  .wrap{padding-left:max(14px,env(safe-area-inset-left));
+    padding-right:max(14px,env(safe-area-inset-right));
+    padding-block:20px 44px;gap:22px}
+  header{gap:10px;padding-bottom:12px}
+  h1{font-size:21px}
+  .sub{font-size:12px}
+  .asof{text-align:left;font-size:12px}
+
   .strip{grid-template-columns:repeat(2,1fr)}
+  .cell{padding:12px 13px}
+  .cell .v,.mode{font-size:18px}
   .ref{grid-template-columns:1fr}
-  .tk{grid-template-columns:80px 54px 1fr;row-gap:8px}
+  .rcol{padding:14px}
+
+  /* 지시 카드: 칩·티어를 한 줄로 올리고 본문은 전체 폭을 쓴다 */
+  .tk{grid-template-columns:auto 1fr;align-items:center;row-gap:7px;column-gap:10px;
+    padding:12px 13px}
+  .tk .chip{padding:4px 9px}
+  .tk .tkbody{grid-column:1/-1}
   .tk .amt{grid-column:1/-1;text-align:left}
-  h1{font-size:22px}
-  .asof{text-align:left}
+
+  pre.txt{font-size:10.5px;line-height:1.8;padding:12px 13px}
+
+  /* iOS Safari는 16px 미만 입력에 포커스하면 화면을 확대한다 */
+  input,select{font-size:16px}
+  td input,td select{padding:8px 9px}
+  input[type=checkbox]{width:22px;height:22px}
+  button{font-size:14px;padding:10px 14px;min-height:42px}
+  .acts{gap:8px}
+  .acts button{flex:1 1 auto}
+  .save{flex:1 1 100%;font-size:11px}
+  .fields{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:11px;padding:13px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
+</head>
+<body>
 
 <div class="wrap">
   <header>
@@ -206,9 +286,13 @@ footer b{color:var(--ink-2);font-weight:600}
   <section>
     <div class="shead">
       <h2>주문 전문</h2>
-      <div class="hint">기록·전달용 — 그대로 선택해 복사</div>
+      <div class="hint">기록·전달용</div>
     </div>
     <pre class="txt" id="plain">—</pre>
+    <div class="acts">
+      <button type="button" id="bCopy">주문 전문 복사</button>
+      <span class="save" id="copyState"></span>
+    </div>
   </section>
 
   <section>
@@ -395,26 +479,26 @@ function render(){
   var tk=[], i;
   c.rows.forEach(function(r){ if(!r.due) return;
     tk.push('<div class="tk moc"><div class="chip">청산 MOC</div><div class="tier">티어 '+(r.i+1)+'</div>'+
-      '<div><div class="desc"><em>'+N(r.qty)+'주</em> 전량 종가 청산</div>'+
+      '<div class="tkbody"><div class="desc"><em>'+N(r.qty)+'주</em> 전량 종가 청산</div>'+
       '<div class="note">보유 '+r.held+'일 = '+r.fd+'영업일 도달 · 목표가 무관 강제청산</div></div>'+
       '<div class="amt">매수가 '+P(r.px)+'</div></div>');
   });
   c.rows.forEach(function(r){ if(!r.sellable) return;
     tk.push('<div class="tk sell"><div class="chip">매도 LOC</div><div class="tier">티어 '+(r.i+1)+'</div>'+
-      '<div><div class="desc"><em>'+N(r.qty)+'주</em> 지정 <em>'+P(r.tgt)+'</em></div>'+
+      '<div class="tkbody"><div class="desc"><em>'+N(r.qty)+'주</em> 지정 <em>'+P(r.tgt)+'</em></div>'+
       '<div class="note">당일 종가 ≥ '+P(r.tgt)+'일 때 종가 체결 · '+(r.tOff?"공세":"수비")+
       ' 매수분 · 강제청산까지 '+r.left+'영업일</div></div>'+
       '<div class="amt">매수가 '+P(r.px)+'</div></div>');
   });
   if(c.target>=0&&c.qty>0){
     tk.push('<div class="tk buy"><div class="chip">매수 LOC</div><div class="tier">티어 '+(c.target+1)+'</div>'+
-      '<div><div class="desc"><em>'+N(c.qty)+'주</em> 상한 <em>'+P(c.cap)+'</em></div>'+
+      '<div class="tkbody"><div class="desc"><em>'+N(c.qty)+'주</em> 상한 <em>'+P(c.cap)+'</em></div>'+
       '<div class="note">당일 종가 ≤ '+P(c.cap)+'일 때만 체결 · 체결가는 당일 종가 · 목표가는 체결 후 확정</div></div>'+
       '<div class="amt">배정 '+P(c.budget,0)+'<br>최대소요 '+P(c.qty*c.cap*1.0007,0)+'</div></div>');
   }
   c.rows.forEach(function(r){ if(!(r.on&&r.held===0)) return;
     tk.push('<div class="tk"><div class="chip">대기</div><div class="tier">티어 '+(r.i+1)+'</div>'+
-      '<div><div class="desc">'+N(r.qty)+'주 매도 주문 없음</div>'+
+      '<div class="tkbody"><div class="desc">'+N(r.qty)+'주 매도 주문 없음</div>'+
       '<div class="note">매수 체결 당일에는 매도하지 않음 · 다음 영업일부터 LOC 매도 판단</div></div>'+
       '<div class="amt">매수가 '+P(r.px)+'</div></div>');
   });
@@ -444,23 +528,23 @@ function render(){
 
   $("tbody").innerHTML=c.rows.map(function(r){
     return '<tr class="'+(!r.on?"empty":(r.due?"due":""))+'">'+
-      '<td>티어 '+(r.i+1)+(c.target===r.i?'<span class="badge">매수대상</span>':"")+'</td>'+
-      '<td class="n">'+(W[r.i]*100).toFixed(0)+'%</td>'+
-      '<td class="n">'+P(r.alloc,0)+'</td>'+
-      '<td><input type="checkbox" id="t'+r.i+'on" data-i="'+r.i+'" data-f="on" '+
+      '<td class="c-tier" data-label="티어">티어 '+(r.i+1)+(c.target===r.i?'<span class="badge">매수대상</span>':"")+'</td>'+
+      '<td class="n c-w" data-label="비중">'+(W[r.i]*100).toFixed(0)+'%</td>'+
+      '<td class="n c-alloc" data-label="배정액">'+P(r.alloc,0)+'</td>'+
+      '<td class="c-on" data-label="보유"><input type="checkbox" id="t'+r.i+'on" data-i="'+r.i+'" data-f="on" '+
         (r.on?"checked":"")+' aria-label="티어 '+(r.i+1)+' 보유"></td>'+
-      '<td class="n"><input type="number" id="t'+r.i+'qty" data-i="'+r.i+'" data-f="qty" min="0" step="1" value="'+
+      '<td class="n c-qty" data-label="수량"><input type="number" id="t'+r.i+'qty" data-i="'+r.i+'" data-f="qty" min="0" step="1" value="'+
         r.qty+'"'+(r.on?"":" disabled")+' aria-label="티어 '+(r.i+1)+' 수량"></td>'+
-      '<td class="n"><input type="number" id="t'+r.i+'px" data-i="'+r.i+'" data-f="px" min="0" step="0.01" value="'+
+      '<td class="n c-px" data-label="매수가"><input type="number" id="t'+r.i+'px" data-i="'+r.i+'" data-f="px" min="0" step="0.01" value="'+
         r.px+'"'+(r.on?"":" disabled")+' aria-label="티어 '+(r.i+1)+' 매수가"></td>'+
-      '<td><select id="t'+r.i+'mode" data-i="'+r.i+'" data-f="mode"'+(r.on?"":" disabled")+
+      '<td class="c-mode" data-label="매수 모드"><select id="t'+r.i+'mode" data-i="'+r.i+'" data-f="mode"'+(r.on?"":" disabled")+
         ' aria-label="티어 '+(r.i+1)+' 매수 모드">'+
         '<option value="off"'+(r.tOff?" selected":"")+'>공세 +2.5% / 7일</option>'+
         '<option value="def"'+(!r.tOff?" selected":"")+'>수비 +0.2% / 30일</option></select></td>'+
-      '<td class="n"><input type="number" id="t'+r.i+'held" data-i="'+r.i+'" data-f="held" min="0" step="1" value="'+
+      '<td class="n c-held" data-label="보유일"><input type="number" id="t'+r.i+'held" data-i="'+r.i+'" data-f="held" min="0" step="1" value="'+
         r.held+'"'+(r.on?"":" disabled")+' aria-label="티어 '+(r.i+1)+' 보유일수"></td>'+
-      '<td class="n tg">'+((r.on&&r.tgt)?'<span class="tgt">'+P(r.tgt)+'</span>':"—")+'</td>'+
-      '<td class="n">'+(r.on?(r.due?"오늘 청산":r.left+"영업일"):"—")+'</td></tr>';
+      '<td class="n tg c-tgt" data-label="목표가">'+((r.on&&r.tgt)?'<span class="tgt">'+P(r.tgt)+'</span>':"—")+'</td>'+
+      '<td class="n c-left" data-label="청산까지">'+(r.on?(r.due?"오늘 청산":r.left+"영업일"):"—")+'</td></tr>';
   }).join("");
 
   Array.prototype.forEach.call($("tbody").querySelectorAll("input,select"),function(el){
@@ -502,6 +586,17 @@ $("bRevert").addEventListener("click",function(){
   S.prev=MARKET.prev; S.rsi=MARKET.rsi;
   S.baseDate=MARKET.baseDate; S.orderDate=MARKET.orderDate;
   override=false; syncFields(); render();
+});
+/* 폰에서는 <pre> 안의 글자를 손으로 긁어 복사하기 어렵다 */
+var copyTimer=null;
+$("bCopy").addEventListener("click",function(){
+  var say=function(m){ $("copyState").textContent=m;
+    clearTimeout(copyTimer); copyTimer=setTimeout(function(){ $("copyState").textContent=""; },2500); };
+  var t=$("plain").textContent;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(function(){ say("복사됨"); },
+      function(){ say("복사 실패 — 길게 눌러 직접 선택하세요"); });
+  } else { say("복사 실패 — 길게 눌러 직접 선택하세요"); }
 });
 $("bNext").addEventListener("click",function(){
   S.tiers.forEach(function(t){ if(t.on) t.held++; });
@@ -577,3 +672,5 @@ if(touched) $("saveState").textContent="저장됨 · 이 브라우저에 보관"
   }).catch(function(){});
 })();
 </script>
+</body>
+</html>
