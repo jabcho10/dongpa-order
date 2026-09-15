@@ -233,6 +233,29 @@ footer b{color:var(--ink-2);font-weight:600}
   .fields{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:11px;padding:13px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.autotop{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:12px}
+.tgl{display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap;
+ padding-bottom:7px}
+.autostate{font-family:var(--mono);font-size:11px;color:var(--ink-3);
+ padding-bottom:8px;flex:1;min-width:180px}
+.autolog{border:1px solid var(--line);border-radius:3px;background:var(--panel);
+ max-height:230px;overflow:auto}
+.lrow{display:flex;gap:12px;padding:8px 12px;border-bottom:1px solid var(--line);
+ font-size:12px;align-items:baseline}
+.lrow:last-child{border-bottom:none}
+.ld{font-family:var(--mono);font-size:11px;color:var(--ink-3);white-space:nowrap}
+.lrow b{font-size:10px;letter-spacing:.06em;padding:1px 5px;border-radius:2px;
+ font-weight:600;margin-right:4px}
+.lb{background:var(--copper-soft);color:var(--copper)}
+.ls{background:var(--oxide-soft);color:var(--oxide)}
+.lm{background:var(--alert-soft);color:var(--alert)}
+.lc{background:var(--wafer-soft);color:var(--wafer)}
+.lempty{padding:14px 12px;font-size:12px;color:var(--ink-3)}
+@media (max-width:860px){
+ .autotop{gap:12px}
+ .autostate{padding-bottom:0;width:100%}
+ .lrow{flex-direction:column;gap:4px}
+}
 </style>
 </head>
 <body>
@@ -319,6 +342,24 @@ footer b{color:var(--ink-2);font-weight:600}
 
   <section>
     <div class="shead">
+      <h2>자동 반영</h2>
+      <div class="hint">확정 종가로 체결·청산을 판정해 티어 현황을 자동으로 전진시킵니다</div>
+    </div>
+    <div class="autotop">
+      <label class="tgl"><input type="checkbox" id="iAuto"> 자동 반영</label>
+      <div class="f"><label for="iLast">마지막 반영 거래일</label>
+        <input type="date" id="iLast"></div>
+      <div class="autostate" id="autoState">—</div>
+    </div>
+    <div class="autolog" id="autoLog"></div>
+    <div class="acts">
+      <button type="button" id="bUndo" disabled>직전 자동 반영 되돌리기</button>
+      <span class="save" id="autoNote"></span>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead">
       <h2>계좌 · 시세</h2>
       <div class="hint" id="feedNote">—</div>
     </div>
@@ -392,15 +433,19 @@ footer b{color:var(--ink-2);font-weight:600}
 /* 시세는 같은 폴더의 market.json 에서 읽습니다 — GitHub Actions가 매 거래일 갱신합니다.
    아래 값은 market.json 을 읽지 못했을 때 쓰는 내장 대체값입니다. */
 var MARKET={
-  prev:115.76, rsi:58.6590,
-  baseDate:"2026-09-10", orderDate:"2026-09-11", weekEnd:"2026-09-04",
-  updated:"2026-09-11 08:47 KST"
+  prev:102.32, rsi:57.4274,
+  baseDate:"2026-09-15", orderDate:"2026-09-16", weekEnd:"2026-09-11",
+  updated:"2026-09-16 08:34 KST"
 };
+/* 대체값에는 history 를 넣지 않습니다 — 신선도를 보장할 수 없는 값으로
+   티어 현황을 자동 전진시키면 안 되기 때문입니다(자동 반영은 market.json 이 있을 때만). */
 var feedSrc="내장 대체값";
 
 var W=[.18,.16,.15,.14,.13,.12,.12];
 var DEFAULT={
   vseed:100000, cash:58000,
+  /* 자동 반영 상태 — lastDate 이후의 거래일을 확정 종가로 따라잡는다 */
+  lastDate:"", auto:true, cyclePnl:0, cycleOpen:false, cycleTracked:false, log:[],
   tiers:[
     {on:true,  qty:147, px:104.20, mode:"off", held:7},
     {on:true,  qty:152, px:105.60, mode:"off", held:4},
@@ -608,6 +653,143 @@ $("bClear").addEventListener("click",function(){
   mark(); render();
 });
 
+/* ── 자동 반영 ──────────────────────────────────────────────────────────────
+ market.json 의 history(최근 거래일의 확정 종가와 그날 적용 RSI)를 받아, 마지막으로
+ 반영한 날 다음 거래일부터 하루씩 확정 규칙을 돌려 티어 상태를 전진시킨다.
+ 순서는 규칙서 §8, 백테스트 엔진과 같다.
+   (2) 장 시작 빈 티어 -> (3) 주문수량 -> (4) 매도·청산 -> (5) 매수 체결
+   -> (6) 사이클 종료 판정 -> 보유일 +1
+ 실제 체결은 계좌 사정(현금, 주문 누락)으로 달라질 수 있으므로 반영 내역을 남기고
+ 되돌리기와 수동 수정을 열어 둔다. */
+var undoSnap=null;
+
+function applyDay(prev, day){
+  var off=day.r>=50, close=day.c, cap=prev*(off?1.05:1.03), ev=[], i, t;
+
+  var target=-1;                                  /* (2) 장 시작 시점 빈 티어 */
+  for(i=0;i<7;i++) if(!S.tiers[i].on){ target=i; break; }
+
+  var qty=0;                                      /* (3) 정수 주문 수량 */
+  if(target>=0){
+    var budget=Math.min(S.vseed*W[target],S.cash);
+    if(budget>0) qty=Math.floor(budget/(cap*1.0007));
+  }
+
+  for(i=0;i<7;i++){                               /* (4) LOC 매도 / MOC 청산 */
+    t=S.tiers[i];
+    if(!t.on||t.held<1) continue;                 /* 매수 당일은 그 티어만 제외 */
+    var tOff=(t.mode==="off"), fd=tOff?7:30, tgt=t.px*(tOff?1.025:1.002), kind=null;
+    if(t.held>=fd) kind="MOC"; else if(close>=tgt) kind="LOC";
+    if(!kind) continue;
+    var proceeds=t.qty*close*0.9993;
+    S.cash+=proceeds;
+    S.cyclePnl+=proceeds-t.qty*t.px*1.0007;
+    ev.push({k:kind,t:i+1,q:t.qty,p:close});
+    S.tiers[i]={on:false,qty:0,px:0,mode:"off",held:0};
+  }
+
+  if(target>=0&&qty>0&&close<=cap){               /* (5) LOC 매수 체결 */
+    var cost=qty*close*1.0007;
+    if(cost<=S.cash+1e-9){
+      S.cash-=cost;
+      if(!S.cycleOpen){ S.cycleOpen=true; S.cycleTracked=true; S.cyclePnl=0; }
+      S.tiers[target]={on:true,qty:qty,px:close,mode:off?"off":"def",held:0};
+      ev.push({k:"BUY",t:target+1,q:qty,p:close});
+    }
+  }
+
+  var empty=true;                                 /* (6) 사이클 종료 -> 가상 시드 */
+  for(i=0;i<7;i++) if(S.tiers[i].on) empty=false;
+  if(S.cycleOpen&&empty){
+    if(S.cycleTracked){
+      S.vseed+=S.cyclePnl*(S.cyclePnl>=0?0.6:0.3);
+      ev.push({k:"CYCLE",pnl:S.cyclePnl,v:S.vseed});
+    } else {
+      ev.push({k:"CYCLE?",pnl:0,v:S.vseed});      /* 시작을 못 본 사이클 */
+    }
+    S.cycleOpen=false; S.cycleTracked=false; S.cyclePnl=0;
+  }
+
+  for(i=0;i<7;i++) if(S.tiers[i].on) S.tiers[i].held++;
+  return ev;
+}
+
+function advance(){
+  var h=MARKET.history, i;
+  if(!S.auto||!Array.isArray(h)||h.length<2||!S.lastDate) return null;
+  var i0=-1;
+  for(i=0;i<h.length;i++) if(h[i].d===S.lastDate){ i0=i; break; }
+  if(i0<0) return {err:"마지막 반영일 "+S.lastDate+"이 시세 이력("+h[0].d+" 이후)에 없습니다 — 티어 현황을 직접 확인하세요"};
+  if(i0===h.length-1) return null;
+  undoSnap=JSON.stringify(userState());
+  var out=[];
+  for(i=i0+1;i<h.length;i++){
+    var ev=applyDay(h[i-1].c,h[i]);
+    S.lastDate=h[i].d;
+    if(ev.length) out.push({d:h[i].d,ev:ev});
+  }
+  S.log=S.log.concat(out).slice(-40);
+  return {days:h.length-1-i0, entries:out};
+}
+
+function renderLog(){
+  var out=S.log.slice(-12).reverse().map(function(e){
+    var parts=e.ev.map(function(x){
+      if(x.k==="BUY")   return '<b class="lb">매수</b> 티어'+x.t+' '+N(x.q)+'주 @ '+P(x.p);
+      if(x.k==="LOC")   return '<b class="ls">익절</b> 티어'+x.t+' '+N(x.q)+'주 @ '+P(x.p);
+      if(x.k==="MOC")   return '<b class="lm">청산</b> 티어'+x.t+' '+N(x.q)+'주 @ '+P(x.p);
+      if(x.k==="CYCLE") return '<b class="lc">사이클 종료</b> 손익 '+P(x.pnl,0)+' · 가상 시드 '+P(x.v,0);
+      return '<b class="lc">사이클 종료</b> 시작 시점을 몰라 가상 시드를 자동 갱신하지 않았습니다 — 직접 확인하세요';
+    });
+    return '<div class="lrow"><span class="ld">'+e.d+'</span><span>'+parts.join(' · ')+'</span></div>';
+  });
+  $("autoLog").innerHTML=out.length?out.join(""):'<div class="lempty">반영된 내역이 없습니다</div>';
+}
+
+function syncAuto(){
+  var h=MARKET.history, has=Array.isArray(h)&&h.length>1;
+  $("iAuto").checked=!!S.auto;
+  $("iAuto").disabled=!has;
+  $("iLast").value=S.lastDate||"";
+  $("bUndo").disabled=!undoSnap;
+  $("autoState").textContent=!has
+    ? "시세 이력 없음 — 수동으로 입력하세요"
+    : (S.lastDate ? S.lastDate+"까지 반영됨 · 이력 "+h[0].d+" ~ "+h[h.length-1].d
+                  : "기준일 미설정");
+  renderLog();
+}
+
+function runAuto(){
+  var note=$("autoNote");
+  if(!S.lastDate&&MARKET.baseDate){
+    S.lastDate=MARKET.baseDate;
+    S.cycleOpen=S.tiers.some(function(t){ return t.on; });
+    S.cycleTracked=false;                          /* 진행 중 사이클의 손익은 모른다 */
+    save();
+    note.textContent="기준일을 "+S.lastDate+"로 맞췄습니다 — 티어 현황이 이 날짜 마감 기준인지 확인하세요";
+  } else {
+    var r=advance();
+    if(r&&r.days){ mark(); note.textContent=r.days+"거래일 자동 반영했습니다"; }
+    else if(r&&r.err){ note.textContent=r.err; }
+    else { note.textContent=""; }
+  }
+  syncFields(); syncAuto(); render();
+}
+
+$("iAuto").addEventListener("change",function(e){
+  S.auto=e.target.checked; mark();
+  if(S.auto) runAuto(); else { $("autoNote").textContent="자동 반영을 껐습니다"; syncAuto(); }
+});
+$("iLast").addEventListener("change",function(e){
+  S.lastDate=e.target.value; undoSnap=null; mark(); runAuto();
+});
+$("bUndo").addEventListener("click",function(){
+  if(!undoSnap) return;
+  adopt(JSON.parse(undoSnap)); undoSnap=null;
+  mark(); syncFields(); syncAuto(); render();
+  $("autoNote").textContent="직전 자동 반영을 되돌렸습니다";
+});
+
 var DB=null, timer=null, LS="dongpa-order-sheet-v1";
 function save(){
   clearTimeout(timer);
@@ -624,17 +806,22 @@ function save(){
    읽으므로, 자동 갱신된 종가가 예전에 저장된 값에 덮이지 않습니다. */
 function adopt(o){
   if(!o||!Array.isArray(o.tiers)||o.tiers.length!==7) return false;
-  ["vseed","cash"].forEach(function(k){ if(typeof o[k]==="number") S[k]=o[k]; });
+  ["vseed","cash","cyclePnl"].forEach(function(k){ if(typeof o[k]==="number") S[k]=o[k]; });
+  ["auto","cycleOpen","cycleTracked"].forEach(function(k){ if(typeof o[k]==="boolean") S[k]=o[k]; });
+  if(typeof o.lastDate==="string") S.lastDate=o.lastDate;
+  if(Array.isArray(o.log)) S.log=o.log.slice(-40);
   S.tiers=o.tiers.map(function(t){ return {on:!!t.on,qty:+t.qty||0,px:+t.px||0,
     mode:(t.mode==="def"?"def":"off"),held:+t.held||0}; });
   return true;
 }
-function userState(){ return {vseed:S.vseed, cash:S.cash, tiers:S.tiers}; }
+function userState(){ return {vseed:S.vseed, cash:S.cash, tiers:S.tiers,
+  lastDate:S.lastDate, auto:S.auto, cyclePnl:S.cyclePnl,
+  cycleOpen:S.cycleOpen, cycleTracked:S.cycleTracked, log:S.log}; }
 try{
   var raw=localStorage.getItem(LS);
   if(raw&&adopt(JSON.parse(raw))) touched=true;
 }catch(e){}
-syncFields(); render();
+syncFields(); render(); syncAuto();
 if(touched) $("saveState").textContent="저장됨 · 이 브라우저에 보관";
 
 /* market.json 을 읽어 시세를 갱신합니다. 못 읽으면 내장 대체값으로 그대로 동작하므로
@@ -652,7 +839,7 @@ if(touched) $("saveState").textContent="저장됨 · 이 브라우저에 보관"
       if(m.orderDate) S.orderDate=m.orderDate;
       syncFields();
     }
-    render();
+    runAuto();
   }).catch(function(){});
 })();
 

@@ -4,6 +4,7 @@
   - QQQ 주간 RSI(14): Adj Close -> 주별 마지막 거래일 -> Wilder 평활
   - 주문일          : 최근 거래일의 다음 영업일
   - weekEnd         : 주문일이 속한 주의 직전 주 마지막 거래일 (RSI 산출 기준일)
+  - history         : 최근 거래일의 확정 종가와 그날 적용 RSI (페이지 자동 반영용)
 
 페이지는 이 파일을 같은 폴더에서 읽는다. 읽지 못하면 HTML 내장 대체값으로 동작한다.
 
@@ -14,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 
 OUT = "market.json"
 N = 14
+HIST = 60          # history 에 담을 최근 거래일 수
 KST = timezone(timedelta(hours=9))
 
 
@@ -103,6 +105,23 @@ def main():
     if rsi != rsi:
         raise RuntimeError("주간 RSI 계산 불가 (NaN)")
 
+    # 페이지가 놓친 거래일을 스스로 따라잡을 수 있도록 최근 종가 이력을 싣는다.
+    # 각 거래일에 그날 적용되는 주간 RSI(직전 주 마지막 거래일 값)를 함께 넣는다.
+    hist = []
+    for ts, c in _frame("SOXL", "6mo")["Close"].dropna().items():
+        hd = ts.date()
+        pk = (hd - timedelta(days=7)).isocalendar()[:2]
+        if pk not in wk:
+            continue
+        _we, hr = wk[pk]
+        if hr != hr:
+            continue
+        hist.append({"d": str(hd), "c": round(float(c), 2), "r": round(hr, 4)})
+    hist = hist[-HIST:]
+    if not hist or hist[-1]["d"] != str(base_date):
+        raise RuntimeError(f"history 마지막 날짜가 기준 종가일과 다릅니다 "
+                           f"({hist[-1]['d'] if hist else '없음'} != {base_date})")
+
     data = {
         "prev": round(prev, 2),
         "rsi": round(rsi, 4),
@@ -110,6 +129,7 @@ def main():
         "orderDate": str(order_date),
         "weekEnd": week_end.strftime("%Y-%m-%d"),
         "updated": f"{datetime.now(KST):%Y-%m-%d %H:%M} KST",
+        "history": hist,
     }
 
     mode = "공세" if data["rsi"] >= 50 else "수비"
@@ -117,6 +137,7 @@ def main():
     print(f"SOXL {data['baseDate']} 종가 ${data['prev']:.2f} | "
           f"QQQ 주간RSI {data['rsi']:.4f} ({data['weekEnd']}) -> {mode}모드")
     print(f"주문일 {data['orderDate']} | LOC 매수 상한 ${cap:.2f}")
+    print(f"history {len(hist)}일 ({hist[0]['d']} ~ {hist[-1]['d']})")
 
     old = None
     if os.path.exists(OUT):
