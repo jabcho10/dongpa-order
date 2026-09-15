@@ -382,7 +382,8 @@ footer b{color:var(--ink-2);font-weight:600}
     <b>산출 근거</b> — 각 포지션의 목표수익률과 강제청산 기간은 매수 체결일 모드로 확정되며, 이후 시장 모드가 바뀌어도 변경하지 않습니다.
     LOC 매수는 당일 종가가 상한 이하일 때만 체결되고, 체결가는 상한가가 아닌 <b>당일 종가</b>입니다.
     주문 수량은 미래 종가를 알 수 없으므로 상한가와 매수 수수료를 기준으로 <b>floor</b> 계산합니다.
-    매수 체결 당일에는 해당 포지션을 매도하지 않으며, 당일 매도된 티어는 다음 영업일부터 다시 빈 티어로 씁니다.
+    매수 체결 당일에는 <b>그 티어만</b> 매도 판단에서 빠지며, 같은 날 다른 티어의 LOC 매도와 MOC 청산은 정상 처리합니다.
+    당일 매도·청산된 티어는 다음 영업일부터 다시 빈 티어로 씁니다.
     이 페이지는 확정 규칙의 주문 산출 보조자료이며, 투자 판단과 주문 집행의 책임은 이용자에게 있습니다.
   </footer>
 </div>
@@ -499,7 +500,7 @@ function render(){
   c.rows.forEach(function(r){ if(!(r.on&&r.held===0)) return;
     tk.push('<div class="tk"><div class="chip">대기</div><div class="tier">티어 '+(r.i+1)+'</div>'+
       '<div class="tkbody"><div class="desc">'+N(r.qty)+'주 매도 주문 없음</div>'+
-      '<div class="note">매수 체결 당일에는 매도하지 않음 · 다음 영업일부터 LOC 매도 판단</div></div>'+
+      '<div class="note">이 티어만 매수 당일 매도 제외 (다른 티어는 정상 판단) · 다음 영업일부터 LOC 매도</div></div>'+
       '<div class="amt">매수가 '+P(r.px)+'</div></div>');
   });
   if(!tk.length){
