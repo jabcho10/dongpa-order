@@ -343,17 +343,18 @@ footer b{color:var(--ink-2);font-weight:600}
   <section>
     <div class="shead">
       <h2>자동 반영</h2>
-      <div class="hint">확정 종가로 체결·청산을 판정해 티어 현황을 자동으로 전진시킵니다</div>
+      <div class="hint">기준 거래일의 보유 현황에서 출발해, 확정 종가로 체결·청산을 판정하며 최신 거래일까지 진행합니다</div>
     </div>
     <div class="autotop">
       <label class="tgl"><input type="checkbox" id="iAuto"> 자동 반영</label>
-      <div class="f"><label for="iLast">마지막 반영 거래일</label>
+      <div class="f"><label for="iLast">기준 거래일</label>
         <input type="date" id="iLast"></div>
       <div class="autostate" id="autoState">—</div>
     </div>
     <div class="autolog" id="autoLog"></div>
     <div class="acts">
-      <button type="button" id="bUndo" disabled>직전 자동 반영 되돌리기</button>
+      <button type="button" id="bPin">현재 상태를 기준으로 고정</button>
+      <button type="button" id="bUndo" disabled>되돌리기</button>
       <span class="save" id="autoNote"></span>
     </div>
   </section>
@@ -444,8 +445,9 @@ var feedSrc="내장 대체값";
 var W=[.18,.16,.15,.14,.13,.12,.12];
 var DEFAULT={
   vseed:100000, cash:58000,
-  /* 자동 반영 상태 — lastDate 이후의 거래일을 확정 종가로 따라잡는다 */
-  lastDate:"", auto:true, cyclePnl:0, cycleOpen:false, cycleTracked:false, log:[],
+  /* 자동 반영 — base(기준점)에서 매번 다시 계산한다 */
+  lastDate:"", auto:true, base:null, snaps:[], log:[],
+  cyclePnl:0, cycleOpen:false, cycleTracked:false,
   tiers:[
     {on:true,  qty:147, px:104.20, mode:"off", held:7},
     {on:true,  qty:152, px:105.60, mode:"off", held:4},
@@ -603,7 +605,8 @@ function render(){
         if(!e.target.checked){ S.tiers[i].qty=0; S.tiers[i].px=0; S.tiers[i].held=0; }
       } else if(f==="mode"){ S.tiers[i].mode=e.target.value; }
       else { S.tiers[i][f]=+e.target.value||0; }
-      mark(); render();
+      pinCurrent();           /* 손으로 고친 상태가 새 기준점이 된다 */
+      mark(); render(); syncAuto();
       var back=document.getElementById(id);
       if(back&&ev==="input") back.focus();
     });
@@ -617,7 +620,8 @@ function syncFields(){
 }
 /* 저장되는 입력: 시드·현금 */
 [["iSeed","vseed"],["iCash","cash"]].forEach(function(p){
-  $(p[0]).addEventListener("input",function(e){ S[p[1]]=+e.target.value||0; mark(); render(); });
+  $(p[0]).addEventListener("input",function(e){
+    S[p[1]]=+e.target.value||0; pinCurrent(); mark(); render(); syncAuto(); });
 });
 /* 저장되지 않는 입력: 시세·날짜 — 다음 자동 갱신 때 되돌아갑니다 */
 [["iPrev","prev"],["iRsi","rsi"]].forEach(function(p){
@@ -646,22 +650,45 @@ $("bCopy").addEventListener("click",function(){
 });
 $("bNext").addEventListener("click",function(){
   S.tiers.forEach(function(t){ if(t.on) t.held++; });
-  mark(); render();
+  pinCurrent(); mark(); render(); syncAuto();
 });
 $("bClear").addEventListener("click",function(){
   S.tiers=S.tiers.map(function(){ return {on:false,qty:0,px:0,mode:"off",held:0}; });
-  mark(); render();
+  S.cycleOpen=false; S.cycleTracked=false; S.cyclePnl=0;   /* 새 사이클 */
+  pinCurrent(); mark(); render(); syncAuto();
 });
 
 /* ── 자동 반영 ──────────────────────────────────────────────────────────────
- market.json 의 history(최근 거래일의 확정 종가와 그날 적용 RSI)를 받아, 마지막으로
- 반영한 날 다음 거래일부터 하루씩 확정 규칙을 돌려 티어 상태를 전진시킨다.
- 순서는 규칙서 §8, 백테스트 엔진과 같다.
+ 기준점(기준 거래일 + 그날 마감 시점의 보유 현황·현금·시드)에서 출발해, market.json 의
+ history 로 하루씩 확정 규칙을 돌려 현재 상태를 계산합니다. 순서는 규칙서 §8과 같습니다.
    (2) 장 시작 빈 티어 -> (3) 주문수량 -> (4) 매도·청산 -> (5) 매수 체결
    -> (6) 사이클 종료 판정 -> 보유일 +1
- 실제 체결은 계좌 사정(현금, 주문 누락)으로 달라질 수 있으므로 반영 내역을 남기고
- 되돌리기와 수동 수정을 열어 둔다. */
+
+ 상태를 누적해서 고치지 않고 **매번 기준점에서 처음부터 다시 계산**합니다. 그래서
+ 기준일을 과거로 되돌려도 같은 구간이 두 번 반영되는 일이 없습니다.
+
+ - 티어 표나 현금·시드를 직접 고치면 그 상태가 새 기준점이 됩니다(기준일 = 마지막 반영일).
+   실제 체결이 계산과 다를 때 이렇게 맞춰 두면 다음 거래일부터 그 위에서 이어집니다.
+ - 기준일을 과거로 돌리면 그날 마감 상태의 스냅샷으로 되돌린 뒤 다시 재생합니다.
+   스냅샷이 없는 날짜면 지금 표에 있는 상태를 그날 것으로 보고 재생하며, 그 사실을 알립니다. */
 var undoSnap=null;
+
+function cloneTiers(ts){
+  return ts.map(function(t){ return {on:!!t.on,qty:+t.qty||0,px:+t.px||0,
+    mode:(t.mode==="def"?"def":"off"),held:+t.held||0}; });
+}
+function grab(){
+  return {vseed:S.vseed, cash:S.cash, tiers:cloneTiers(S.tiers),
+          cyclePnl:S.cyclePnl, cycleOpen:S.cycleOpen, cycleTracked:S.cycleTracked};
+}
+function put(o){
+  S.vseed=+o.vseed||0; S.cash=+o.cash||0; S.tiers=cloneTiers(o.tiers||[]);
+  S.cyclePnl=+o.cyclePnl||0; S.cycleOpen=!!o.cycleOpen; S.cycleTracked=!!o.cycleTracked;
+}
+function setBase(d,st){
+  S.base={d:d, vseed:st.vseed, cash:st.cash, tiers:cloneTiers(st.tiers),
+          cyclePnl:st.cyclePnl, cycleOpen:st.cycleOpen, cycleTracked:st.cycleTracked};
+}
 
 function applyDay(prev, day){
   var off=day.r>=50, close=day.c, cap=prev*(off?1.05:1.03), ev=[], i, t;
@@ -714,26 +741,42 @@ function applyDay(prev, day){
   return ev;
 }
 
-function advance(){
-  var h=MARKET.history, i;
-  if(!S.auto||!Array.isArray(h)||h.length<2||!S.lastDate) return null;
+/* 기준점 -> 최신 거래일까지 다시 계산 (멱등) */
+function replay(){
+  var h=MARKET.history, b=S.base, i;
+  S.log=[]; S.snaps=[];
+  if(!b||!b.d) return null;
+  put(b); S.lastDate=b.d;
+  if(!Array.isArray(h)||h.length<2) return {err:"시세 이력이 없어 자동 반영을 건너뜁니다"};
   var i0=-1;
-  for(i=0;i<h.length;i++) if(h[i].d===S.lastDate){ i0=i; break; }
-  if(i0<0) return {err:"마지막 반영일 "+S.lastDate+"이 시세 이력("+h[0].d+" 이후)에 없습니다 — 티어 현황을 직접 확인하세요"};
-  if(i0===h.length-1) return null;
-  undoSnap=JSON.stringify(userState());
-  var out=[];
+  for(i=0;i<h.length;i++) if(h[i].d===b.d){ i0=i; break; }
+  if(i0<0) return {err:"기준일 "+b.d+"이 시세 이력("+h[0].d+" ~ "+h[h.length-1].d+") 밖입니다 — 기준일을 이 범위 안으로 잡으세요"};
   for(i=i0+1;i<h.length;i++){
     var ev=applyDay(h[i-1].c,h[i]);
     S.lastDate=h[i].d;
-    if(ev.length) out.push({d:h[i].d,ev:ev});
+    S.snaps.push({d:h[i].d,st:grab()});
+    if(ev.length) S.log.push({d:h[i].d,ev:ev});
   }
-  S.log=S.log.concat(out).slice(-40);
-  return {days:h.length-1-i0, entries:out};
+  return {days:h.length-1-i0};
+}
+
+/* 지금 화면 상태를 기준점으로 고정 — 수동 수정이 다음 재생에 덮이지 않게 한다 */
+function pinCurrent(){
+  setBase(S.lastDate||MARKET.baseDate||"", grab());
+  S.log=[]; S.snaps=[];
+}
+
+/* 기준일 변경 — 그날 마감 스냅샷이 있으면 그것으로, 없으면 현재 표를 그날 것으로 본다 */
+function rewind(d){
+  var st=null, i;
+  for(i=0;i<S.snaps.length;i++) if(S.snaps[i].d===d) st=S.snaps[i].st;
+  if(!st&&S.base&&S.base.d===d) st=S.base;
+  setBase(d, st||grab());
+  return !!st;
 }
 
 function renderLog(){
-  var out=S.log.slice(-12).reverse().map(function(e){
+  var out=S.log.slice(-14).reverse().map(function(e){
     var parts=e.ev.map(function(x){
       if(x.k==="BUY")   return '<b class="lb">매수</b> 티어'+x.t+' '+N(x.q)+'주 @ '+P(x.p);
       if(x.k==="LOC")   return '<b class="ls">익절</b> 티어'+x.t+' '+N(x.q)+'주 @ '+P(x.p);
@@ -743,51 +786,72 @@ function renderLog(){
     });
     return '<div class="lrow"><span class="ld">'+e.d+'</span><span>'+parts.join(' · ')+'</span></div>';
   });
-  $("autoLog").innerHTML=out.length?out.join(""):'<div class="lempty">반영된 내역이 없습니다</div>';
+  $("autoLog").innerHTML=out.length?out.join("")
+    :'<div class="lempty">'+(S.auto?"기준일 이후 반영된 내역이 없습니다":"자동 반영이 꺼져 있습니다")+'</div>';
 }
+
+function note(m){ $("autoNote").textContent=m||""; }
 
 function syncAuto(){
   var h=MARKET.history, has=Array.isArray(h)&&h.length>1;
   $("iAuto").checked=!!S.auto;
-  $("iAuto").disabled=!has;
-  $("iLast").value=S.lastDate||"";
+  $("iLast").value=(S.base&&S.base.d)||"";
+  $("iLast").disabled=!S.auto;
   $("bUndo").disabled=!undoSnap;
+  if(has){ $("iLast").min=h[0].d; $("iLast").max=h[h.length-1].d; }
   $("autoState").textContent=!has
     ? "시세 이력 없음 — 수동으로 입력하세요"
-    : (S.lastDate ? S.lastDate+"까지 반영됨 · 이력 "+h[0].d+" ~ "+h[h.length-1].d
-                  : "기준일 미설정");
+    : (!S.auto ? "자동 반영 꺼짐 · 표를 직접 관리합니다"
+       : (S.base&&S.base.d ? "기준 "+S.base.d+" → "+S.lastDate+" 반영됨 · 이력 "+h[0].d+" ~ "+h[h.length-1].d
+                           : "기준일 미설정"));
   renderLog();
 }
 
 function runAuto(){
-  var note=$("autoNote");
-  if(!S.lastDate&&MARKET.baseDate){
-    S.lastDate=MARKET.baseDate;
-    S.cycleOpen=S.tiers.some(function(t){ return t.on; });
-    S.cycleTracked=false;                          /* 진행 중 사이클의 손익은 모른다 */
-    save();
-    note.textContent="기준일을 "+S.lastDate+"로 맞췄습니다 — 티어 현황이 이 날짜 마감 기준인지 확인하세요";
-  } else {
-    var r=advance();
-    if(r&&r.days){ mark(); note.textContent=r.days+"거래일 자동 반영했습니다"; }
-    else if(r&&r.err){ note.textContent=r.err; }
-    else { note.textContent=""; }
+  if(!S.base||!S.base.d){
+    /* 최초 1회: 기준점만 잡고 아무것도 반영하지 않는다 */
+    if(MARKET.baseDate){
+      S.lastDate=MARKET.baseDate;
+      S.cycleOpen=S.tiers.some(function(t){ return t.on; });
+      S.cycleTracked=false;
+      setBase(MARKET.baseDate, grab());
+      save();
+      note("기준일을 "+MARKET.baseDate+"로 잡았습니다 — 티어 현황이 이 날짜 마감 기준인지 확인하세요");
+    }
+  } else if(S.auto){
+    var r=replay();
+    if(r&&r.err) note(r.err);
+    else if(r&&r.days) note(r.days+"거래일 반영했습니다 (기준 "+S.base.d+")");
+    else note("");
+    mark();
   }
   syncFields(); syncAuto(); render();
 }
 
 $("iAuto").addEventListener("change",function(e){
-  S.auto=e.target.checked; mark();
-  if(S.auto) runAuto(); else { $("autoNote").textContent="자동 반영을 껐습니다"; syncAuto(); }
+  S.auto=e.target.checked;
+  if(S.auto){ pinCurrent(); runAuto(); note("자동 반영을 켰습니다 — 지금 상태를 "+((S.base&&S.base.d)||"—")+" 기준으로 잡았습니다"); }
+  else { mark(); note("자동 반영을 껐습니다 — 표를 직접 관리합니다"); syncAuto(); }
 });
 $("iLast").addEventListener("change",function(e){
-  S.lastDate=e.target.value; undoSnap=null; mark(); runAuto();
+  var d=e.target.value;
+  if(!d) return;
+  undoSnap=JSON.stringify(userState());
+  var known=rewind(d);
+  runAuto();
+  note(known ? "기준일을 "+d+"로 되돌려 다시 계산했습니다"
+             : "기준일을 "+d+"로 잡았습니다 — 그날 마감 상태를 몰라 지금 표를 그날 것으로 보고 계산했습니다. 표가 그 시점 기준인지 확인하세요");
+});
+$("bPin").addEventListener("click",function(){
+  undoSnap=JSON.stringify(userState());
+  pinCurrent(); mark(); syncAuto();
+  note("지금 상태를 "+((S.base&&S.base.d)||"—")+" 기준으로 고정했습니다");
 });
 $("bUndo").addEventListener("click",function(){
   if(!undoSnap) return;
   adopt(JSON.parse(undoSnap)); undoSnap=null;
   mark(); syncFields(); syncAuto(); render();
-  $("autoNote").textContent="직전 자동 반영을 되돌렸습니다";
+  note("직전 변경을 되돌렸습니다");
 });
 
 var DB=null, timer=null, LS="dongpa-order-sheet-v1";
@@ -809,14 +873,16 @@ function adopt(o){
   ["vseed","cash","cyclePnl"].forEach(function(k){ if(typeof o[k]==="number") S[k]=o[k]; });
   ["auto","cycleOpen","cycleTracked"].forEach(function(k){ if(typeof o[k]==="boolean") S[k]=o[k]; });
   if(typeof o.lastDate==="string") S.lastDate=o.lastDate;
+  if(o.base&&typeof o.base==="object"&&Array.isArray(o.base.tiers)) S.base=o.base;
+  if(Array.isArray(o.snaps)) S.snaps=o.snaps.slice(-80);
   if(Array.isArray(o.log)) S.log=o.log.slice(-40);
   S.tiers=o.tiers.map(function(t){ return {on:!!t.on,qty:+t.qty||0,px:+t.px||0,
     mode:(t.mode==="def"?"def":"off"),held:+t.held||0}; });
   return true;
 }
 function userState(){ return {vseed:S.vseed, cash:S.cash, tiers:S.tiers,
-  lastDate:S.lastDate, auto:S.auto, cyclePnl:S.cyclePnl,
-  cycleOpen:S.cycleOpen, cycleTracked:S.cycleTracked, log:S.log}; }
+  lastDate:S.lastDate, auto:S.auto, base:S.base, snaps:S.snaps, log:S.log,
+  cyclePnl:S.cyclePnl, cycleOpen:S.cycleOpen, cycleTracked:S.cycleTracked}; }
 try{
   var raw=localStorage.getItem(LS);
   if(raw&&adopt(JSON.parse(raw))) touched=true;
