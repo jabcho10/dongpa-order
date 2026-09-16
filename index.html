@@ -110,6 +110,12 @@ h2{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .cfw{font-size:11px;color:var(--ink-3)}
 .confirm .acts{padding:11px 14px;border-top:1px solid var(--line)}
 
+.setbar{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;background:var(--panel);
+  border:1px solid var(--line);border-radius:3px;padding:11px 14px}
+.setbar .sf{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2);
+  white-space:nowrap}
+.setbar input{width:132px}
+
 .autobar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .autobar .fin{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2)}
 .autobar .fin input{width:150px}
@@ -236,6 +242,8 @@ footer b{color:var(--ink-2);font-weight:600}
   .ref{grid-template-columns:1fr}
   .rcol{padding:14px}
 
+  .setbar .sf{width:100%}
+  .setbar input{flex:1;width:auto;min-width:0}
   .cfrow{grid-template-columns:1fr 1fr;gap:8px}
   .cfchk,.cfw{grid-column:1/-1}
   .autobar .fin{width:100%}
@@ -340,6 +348,12 @@ footer b{color:var(--ink-2);font-weight:600}
     <pre class="txt" id="plain" hidden>—</pre>
   </section>
 
+  <div class="setbar">
+    <label class="sf">기준일 <input type="date" id="iLast"></label>
+    <label class="sf">가상 시드 <input type="number" id="iSeed" step="100" min="0"></label>
+    <label class="sf">현금 <input type="number" id="iCash" step="100" min="0"></label>
+  </div>
+
   <section>
     <div class="shead">
       <h2>보유 현황</h2>
@@ -366,7 +380,6 @@ footer b{color:var(--ink-2);font-weight:600}
     </div>
     <div class="autobar">
       <label class="tgl"><input type="checkbox" id="iAuto"> 자동 반영</label>
-      <label class="fin">기준일 <input type="date" id="iLast"></label>
       <button type="button" id="bPin">현재 상태로 고정</button>
       <button type="button" id="bUndo" disabled>되돌리기</button>
       <button type="button" id="bClear">전 티어 비우기</button>
@@ -383,12 +396,8 @@ footer b{color:var(--ink-2);font-weight:600}
   </details>
 
   <details class="fold">
-    <summary>설정 · 시세</summary>
+    <summary>시세 수동 조정</summary>
     <div class="fields">
-      <div class="f"><label for="iSeed">사이클 시작 가상 시드 ($)</label>
-        <input type="number" id="iSeed" step="100" min="0"></div>
-      <div class="f"><label for="iCash">실제 주문 가능 현금 ($)</label>
-        <input type="number" id="iCash" step="100" min="0"></div>
       <div class="f"><label for="iPrev">전일 SOXL 종가 ($)</label>
         <input type="number" id="iPrev" step="0.01" min="0"></div>
       <div class="f"><label for="iRsi">QQQ 주간 RSI(14)</label>
@@ -956,7 +965,6 @@ function syncAuto(){
   var h=MARKET.history, has=Array.isArray(h)&&h.length>1;
   $("iAuto").checked=!!S.auto;
   $("iLast").value=(S.base&&S.base.d)||"";
-  $("iLast").disabled=!S.auto;
   $("bUndo").disabled=!undoSnap;
   if(has){ $("iLast").min=h[0].d; $("iLast").max=h[h.length-1].d; }
   $("autoState").textContent=!has
@@ -1002,6 +1010,9 @@ $("iLast").addEventListener("change",function(e){
   if(!d) return;
   undoSnap=JSON.stringify(userState());
   var known=rewind(d);
+  if(!S.auto){                      /* 확인 모드에서는 재생하지 않으므로 직접 되돌린다 */
+    put(S.base); S.lastDate=S.base.d; S.log=[]; S.snaps=[];
+  }
   runAuto();
   note(known ? "기준일을 "+d+"로 되돌려 다시 계산했습니다"
              : "기준일을 "+d+"로 잡았습니다 — 그날 마감 상태를 몰라 지금 표를 그날 것으로 보고 계산했습니다. 표가 그 시점 기준인지 확인하세요");
