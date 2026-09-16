@@ -672,7 +672,9 @@ function syncFields(){
 /* 저장되는 입력: 시드·현금 */
 [["iSeed","vseed"],["iCash","cash"]].forEach(function(p){
   $(p[0]).addEventListener("input",function(e){
-    S[p[1]]=+e.target.value||0; pinCurrent(); mark(); render(); syncAuto(); });
+    var v=+e.target.value||0;
+    S[p[1]]=(p[1]==="vseed")?Math.round(v):v;
+    pinCurrent(); mark(); render(); syncAuto(); });
 });
 /* 저장되지 않는 입력: 시세·날짜 — 다음 자동 갱신 때 되돌아갑니다 */
 [["iPrev","prev"],["iRsi","rsi"]].forEach(function(p){
@@ -792,7 +794,8 @@ function applyDay(prev, day, dec){
   for(i=0;i<7;i++) if(S.tiers[i].on) empty=false;
   if(S.cycleOpen&&empty){
     if(S.cycleTracked){
-      S.vseed+=S.cyclePnl*(S.cyclePnl>=0?0.6:0.3);
+      /* 가상 시드는 달러 단위로 반올림한다 — 센트 단위 시드는 주문에 의미가 없다 */
+      S.vseed=Math.round(S.vseed+S.cyclePnl*(S.cyclePnl>=0?0.6:0.3));
       ev.push({k:"CYCLE",pnl:S.cyclePnl,v:S.vseed});
     } else {
       ev.push({k:"CYCLE?",pnl:0,v:S.vseed});      /* 시작을 못 본 사이클 */
@@ -1046,6 +1049,7 @@ function save(){
 function adopt(o){
   if(!o||!Array.isArray(o.tiers)||o.tiers.length!==7) return false;
   ["vseed","cash","cyclePnl"].forEach(function(k){ if(typeof o[k]==="number") S[k]=o[k]; });
+  S.vseed=Math.round(S.vseed);          /* 예전 저장본의 소수점 시드를 정리 */
   ["auto","cycleOpen","cycleTracked"].forEach(function(k){ if(typeof o[k]==="boolean") S[k]=o[k]; });
   if(typeof o.lastDate==="string") S.lastDate=o.lastDate;
   if(o.base&&typeof o.base==="object"&&Array.isArray(o.base.tiers)) S.base=o.base;
