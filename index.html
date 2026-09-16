@@ -93,6 +93,8 @@ h2{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .otag.sell{background:var(--oxide-soft);color:var(--oxide)}
 .otag.moc{background:var(--alert-soft);color:var(--alert)}
 .oempty{text-align:center;color:var(--ink-3);font-size:12.5px;padding:20px 12px}
+.c-left .sub{display:block;font-size:10px;color:var(--ink-3);font-weight:400}
+.c-held input[type=date]{width:100%;min-width:130px}
 
 .confirm{border:1px solid var(--copper);border-radius:3px;background:var(--panel)}
 .chead{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;padding:11px 14px;
@@ -367,7 +369,6 @@ footer b{color:var(--ink-2);font-weight:600}
       <label class="fin">기준일 <input type="date" id="iLast"></label>
       <button type="button" id="bPin">현재 상태로 고정</button>
       <button type="button" id="bUndo" disabled>되돌리기</button>
-      <button type="button" id="bNext">보유일 +1</button>
       <button type="button" id="bClear">전 티어 비우기</button>
     </div>
     <div class="acts">
@@ -468,10 +469,10 @@ var DEFAULT={
     {on:true,  qty:147, px:104.20, mode:"off", held:7},
     {on:true,  qty:152, px:105.60, mode:"off", held:4},
     {on:true,  qty:141, px:107.10, mode:"def", held:2},
-    {on:false, qty:0,   px:0,      mode:"off", held:0},
-    {on:false, qty:0,   px:0,      mode:"off", held:0},
-    {on:false, qty:0,   px:0,      mode:"off", held:0},
-    {on:false, qty:0,   px:0,      mode:"off", held:0}
+    {on:false, qty:0,   px:0,      mode:"off", held:0, bd:""},
+    {on:false, qty:0,   px:0,      mode:"off", held:0, bd:""},
+    {on:false, qty:0,   px:0,      mode:"off", held:0, bd:""},
+    {on:false, qty:0,   px:0,      mode:"off", held:0, bd:""}
   ]};
 var S=JSON.parse(JSON.stringify(DEFAULT)), touched=false, override=false;
 S.prev=MARKET.prev; S.rsi=MARKET.rsi;
@@ -482,6 +483,27 @@ function P(n,d){ d=(d===undefined)?2:d;
 function N(n){ return (+n).toLocaleString("en-US"); }
 function $(id){ return document.getElementById(id); }
 function pad(s,w){ s=String(s); while(s.length<w) s=" "+s; return s; }
+
+/* 체결일 <-> 보유일 변환. 보유일은 사람이 셀 값이 아니라 거래일 차이일 뿐이므로
+   화면에는 체결일만 보여주고, 보유일은 시세 이력의 거래일로 계산한다.
+
+   held 는 '다음 주문일 기준' 보유일이다. 매수 당일 장 마감에 1이 되고, 7이 되는 날이
+   매수 후 7영업일째여서 그날 MOC 청산에 걸린다(규칙서 §6.2). 그래서 마지막 반영일과
+   체결일의 거래일 차이에 1을 더한 값이 held 가 된다. */
+function calIdx(d){
+  var h=MARKET.history, i;
+  if(!Array.isArray(h)||!d) return -1;
+  for(i=0;i<h.length;i++) if(h[i].d===d) return i;
+  return -1;
+}
+function dateFromHeld(held){
+  var i=calIdx(S.lastDate), j=i-held+1;
+  return (i>=0&&held>=1&&j>=0)?MARKET.history[j].d:"";
+}
+function heldFromDate(d){
+  var i=calIdx(S.lastDate), j=calIdx(d);
+  return (i<0||j<0)?null:(i-j+1);
+}
 
 function calc(){
   var off=S.rsi>=50;
@@ -497,6 +519,7 @@ function calc(){
   var rows=S.tiers.map(function(t,i){
     var tOff=(t.mode==="off"), fd=tOff?7:30;
     return { i:i, on:t.on, qty:t.qty, px:t.px, held:t.held, tOff:tOff, fd:fd,
+      bd:(t.bd||dateFromHeld(t.held)),
       alloc:alloc[i],
       tgt:(t.on&&t.px>0)?t.px*(tOff?1.025:1.002):0,
       left:t.on?(fd-t.held):null,
@@ -601,10 +624,12 @@ function render(){
         ' aria-label="티어 '+(r.i+1)+' 매수 모드">'+
         '<option value="off"'+(r.tOff?" selected":"")+'>공세 +2.5% / 7일</option>'+
         '<option value="def"'+(!r.tOff?" selected":"")+'>수비 +0.2% / 30일</option></select></td>'+
-      '<td class="n c-held" data-label="보유일"><input type="number" id="t'+r.i+'held" data-i="'+r.i+'" data-f="held" min="0" step="1" value="'+
-        r.held+'"'+(r.on?"":" disabled")+' aria-label="티어 '+(r.i+1)+' 보유일수"></td>'+
+      '<td class="c-held" data-label="체결일"><input type="date" id="t'+r.i+'bd" data-i="'+r.i+'" data-f="bd" value="'+
+        r.bd+'"'+(r.on?"":" disabled")+' aria-label="티어 '+(r.i+1)+' 체결일"></td>'+
       '<td class="n tg c-tgt" data-label="목표가">'+((r.on&&r.tgt)?'<span class="tgt">'+P(r.tgt)+'</span>':"—")+'</td>'+
-      '<td class="n c-left" data-label="청산까지">'+(r.on?(r.due?"오늘 청산":r.left+"영업일"):"—")+'</td></tr>';
+      '<td class="n c-left" data-label="청산까지">'+(r.on
+        ?(r.due?"오늘 청산":r.left+"영업일")+'<span class="sub">보유 '+r.held+'일</span>'
+        :"—")+'</td></tr>';
   }).join("");
 
   Array.prototype.forEach.call($("tbody").querySelectorAll("input,select"),function(el){
@@ -614,8 +639,13 @@ function render(){
       var pos=(ev==="input"&&e.target.setSelectionRange)?null:null;
       if(f==="on"){
         S.tiers[i].on=e.target.checked;
-        if(!e.target.checked){ S.tiers[i].qty=0; S.tiers[i].px=0; S.tiers[i].held=0; }
+        if(!e.target.checked){ S.tiers[i].qty=0; S.tiers[i].px=0; S.tiers[i].held=0; S.tiers[i].bd=""; }
       } else if(f==="mode"){ S.tiers[i].mode=e.target.value; }
+      else if(f==="bd"){
+        S.tiers[i].bd=e.target.value;
+        var hd=heldFromDate(e.target.value);       /* 체결일로 보유일을 다시 센다 */
+        if(hd!==null&&hd>=1) S.tiers[i].held=hd;
+      }
       else { S.tiers[i][f]=+e.target.value||0; }
       pinCurrent();           /* 손으로 고친 상태가 새 기준점이 된다 */
       mark(); render(); syncAuto();
@@ -660,12 +690,9 @@ $("bCopy").addEventListener("click",function(){
       function(){ say("복사 실패 — 길게 눌러 직접 선택하세요"); });
   } else { say("복사 실패 — 길게 눌러 직접 선택하세요"); }
 });
-$("bNext").addEventListener("click",function(){
-  S.tiers.forEach(function(t){ if(t.on) t.held++; });
-  pinCurrent(); mark(); render(); syncAuto();
-});
+
 $("bClear").addEventListener("click",function(){
-  S.tiers=S.tiers.map(function(){ return {on:false,qty:0,px:0,mode:"off",held:0}; });
+  S.tiers=S.tiers.map(function(){ return {on:false,qty:0,px:0,mode:"off",held:0,bd:""}; });
   S.cycleOpen=false; S.cycleTracked=false; S.cyclePnl=0;   /* 새 사이클 */
   pinCurrent(); mark(); render(); syncAuto();
 });
@@ -687,7 +714,7 @@ var undoSnap=null, cfProp=null;
 
 function cloneTiers(ts){
   return ts.map(function(t){ return {on:!!t.on,qty:+t.qty||0,px:+t.px||0,
-    mode:(t.mode==="def"?"def":"off"),held:+t.held||0}; });
+    mode:(t.mode==="def"?"def":"off"),held:+t.held||0,bd:t.bd||""}; });
 }
 function grab(){
   return {vseed:S.vseed, cash:S.cash, tiers:cloneTiers(S.tiers),
@@ -733,7 +760,7 @@ function applyDay(prev, day, dec){
     S.cash+=proceeds;
     S.cyclePnl+=proceeds-t.qty*t.px*1.0007;
     ev.push({k:kind,t:i+1,q:t.qty,p:sx});
-    S.tiers[i]={on:false,qty:0,px:0,mode:"off",held:0};
+    S.tiers[i]={on:false,qty:0,px:0,mode:"off",held:0,bd:""};
   }
 
   var bq=qty, bx=close, fill=(qty>0&&close<=cap);  /* (5) LOC 매수 체결 */
@@ -747,7 +774,7 @@ function applyDay(prev, day, dec){
     if(cost<=S.cash+1e-9){
       S.cash-=cost;
       if(!S.cycleOpen){ S.cycleOpen=true; S.cycleTracked=true; S.cyclePnl=0; }
-      S.tiers[target]={on:true,qty:bq,px:bx,mode:off?"off":"def",held:0};
+      S.tiers[target]={on:true,qty:bq,px:bx,mode:off?"off":"def",held:0,bd:day.d};
       ev.push({k:"BUY",t:target+1,q:bq,p:bx});
     }
   }
@@ -1014,7 +1041,7 @@ function adopt(o){
   if(Array.isArray(o.snaps)) S.snaps=o.snaps.slice(-80);
   if(Array.isArray(o.log)) S.log=o.log.slice(-40);
   S.tiers=o.tiers.map(function(t){ return {on:!!t.on,qty:+t.qty||0,px:+t.px||0,
-    mode:(t.mode==="def"?"def":"off"),held:+t.held||0}; });
+    mode:(t.mode==="def"?"def":"off"),held:+t.held||0,bd:t.bd||""}; });
   return true;
 }
 function userState(){ return {vseed:S.vseed, cash:S.cash, tiers:S.tiers,
