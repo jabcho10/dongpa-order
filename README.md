@@ -12,10 +12,16 @@ SOXL 7티어 순환 매매(동파 전략)의 당일 LOC·MOC 주문을 산출하
 | `index.html` | 주문 지시서 (GitHub Pages가 서빙) |
 | `market.json` | 시세 + 최근 60거래일 이력 — 워크플로가 매 거래일 갱신 |
 | `update_market.py` | 시세 산출 및 `market.json` 갱신 |
+| `backtest.html` | 백테스트 (GitHub Pages가 서빙) |
+| `backtest_data.js` | 백테스트 입력 — 분할 복원 종가·전일 종가·주간 RSI 스냅샷 |
 | `.github/workflows/update-market.yml` | 화~토 07:07 KST 예약 실행 |
 
 페이지는 같은 폴더의 `market.json`을 읽는다. 읽지 못하면 HTML에 내장된 대체값으로 동작하므로
 어떤 경우에도 주문 산출은 가능하다.
+
+백테스트 페이지는 같은 폴더의 `backtest_data.js`를 읽는다. 이 파일은 워크플로가 갱신하지 않는
+고정 스냅샷이며, 확정 규칙 리포지토리에서 `python make_backtest_data.py`로 다시 만들어 복사해
+넣는다. 페이지 머리말에 데이터 구간이 찍히므로 기준일은 화면에서 확인할 수 있다.
 
 ## 자동 갱신
 
