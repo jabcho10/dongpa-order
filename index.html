@@ -94,6 +94,20 @@ h2{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .otag.moc{background:var(--alert-soft);color:var(--alert)}
 .oempty{text-align:center;color:var(--ink-3);font-size:12.5px;padding:20px 12px}
 
+.confirm{border:1px solid var(--copper);border-radius:3px;background:var(--panel)}
+.chead{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;padding:11px 14px;
+  border-bottom:1px solid var(--line);font-size:13px;font-weight:600}
+.chead b{font-family:var(--mono);color:var(--copper)}
+.chead .hint{font-weight:400}
+.cfrow{display:grid;grid-template-columns:100px 60px 78px 90px 1fr;gap:10px;align-items:center;
+  padding:9px 14px;border-bottom:1px solid var(--line);font-size:12px}
+.cfrow:last-child{border-bottom:none}
+.cfchk{display:flex;align-items:center;gap:8px;cursor:pointer}
+.cft{font-family:var(--mono);font-size:12.5px;font-weight:600}
+.cfrow input[type=number]{width:100%}
+.cfw{font-size:11px;color:var(--ink-3)}
+.confirm .acts{padding:11px 14px;border-top:1px solid var(--line)}
+
 .autobar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .autobar .fin{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2)}
 .autobar .fin input{width:150px}
@@ -220,6 +234,8 @@ footer b{color:var(--ink-2);font-weight:600}
   .ref{grid-template-columns:1fr}
   .rcol{padding:14px}
 
+  .cfrow{grid-template-columns:1fr 1fr;gap:8px}
+  .cfchk,.cfw{grid-column:1/-1}
   .autobar .fin{width:100%}
   .autobar .fin input{flex:1;width:auto}
   details.fold>*:not(summary){margin:12px 13px}
@@ -326,6 +342,15 @@ footer b{color:var(--ink-2);font-weight:600}
     <div class="shead">
       <h2>보유 현황</h2>
       <div class="hint" id="autoState">—</div>
+    </div>
+    <div class="confirm" id="confirm" hidden>
+      <div class="chead"><b id="cfDate">—</b> 주문 확인
+        <span class="hint" id="cfNote"></span></div>
+      <div id="cfRows"></div>
+      <div class="acts">
+        <button type="button" id="bConfirm">확인하고 반영</button>
+        <button type="button" id="bAll">남은 날 규칙대로 전부</button>
+      </div>
     </div>
     <div class="tscroll">
       <table>
@@ -658,7 +683,7 @@ $("bClear").addEventListener("click",function(){
    실제 체결이 계산과 다를 때 이렇게 맞춰 두면 다음 거래일부터 그 위에서 이어집니다.
  - 기준일을 과거로 돌리면 그날 마감 상태의 스냅샷으로 되돌린 뒤 다시 재생합니다.
    스냅샷이 없는 날짜면 지금 표에 있는 상태를 그날 것으로 보고 재생하며, 그 사실을 알립니다. */
-var undoSnap=null;
+var undoSnap=null, cfProp=null;
 
 function cloneTiers(ts){
   return ts.map(function(t){ return {on:!!t.on,qty:+t.qty||0,px:+t.px||0,
@@ -677,7 +702,9 @@ function setBase(d,st){
           cyclePnl:st.cyclePnl, cycleOpen:st.cycleOpen, cycleTracked:st.cycleTracked};
 }
 
-function applyDay(prev, day){
+/* dec 가 없으면 규칙대로, 있으면 사용자가 확인한 대로 처리한다.
+   dec = {sell:{티어인덱스:{fill,px}}, buy:{fill,qty,px}} */
+function applyDay(prev, day, dec){
   var off=day.r>=50, close=day.c, cap=prev*(off?1.05:1.03), ev=[], i, t;
 
   var target=-1;                                  /* (2) 장 시작 시점 빈 티어 */
@@ -694,21 +721,34 @@ function applyDay(prev, day){
     if(!t.on||t.held<1) continue;                 /* 매수 당일은 그 티어만 제외 */
     var tOff=(t.mode==="off"), fd=tOff?7:30, tgt=t.px*(tOff?1.025:1.002), kind=null;
     if(t.held>=fd) kind="MOC"; else if(close>=tgt) kind="LOC";
+    var sx=close;
+    if(dec&&dec.sell){                            /* 확인 결과로 덮어쓰기 */
+      var sd=dec.sell[i];
+      if(!sd||!sd.fill) continue;
+      if(!kind) kind="LOC";
+      if(sd.px>0) sx=sd.px;
+    }
     if(!kind) continue;
-    var proceeds=t.qty*close*0.9993;
+    var proceeds=t.qty*sx*0.9993;
     S.cash+=proceeds;
     S.cyclePnl+=proceeds-t.qty*t.px*1.0007;
-    ev.push({k:kind,t:i+1,q:t.qty,p:close});
+    ev.push({k:kind,t:i+1,q:t.qty,p:sx});
     S.tiers[i]={on:false,qty:0,px:0,mode:"off",held:0};
   }
 
-  if(target>=0&&qty>0&&close<=cap){               /* (5) LOC 매수 체결 */
-    var cost=qty*close*1.0007;
+  var bq=qty, bx=close, fill=(qty>0&&close<=cap);  /* (5) LOC 매수 체결 */
+  if(dec&&dec.buy){
+    fill=!!dec.buy.fill;
+    if(dec.buy.qty>0) bq=dec.buy.qty;
+    if(dec.buy.px>0) bx=dec.buy.px;
+  }
+  if(target>=0&&fill&&bq>0){
+    var cost=bq*bx*1.0007;
     if(cost<=S.cash+1e-9){
       S.cash-=cost;
       if(!S.cycleOpen){ S.cycleOpen=true; S.cycleTracked=true; S.cyclePnl=0; }
-      S.tiers[target]={on:true,qty:qty,px:close,mode:off?"off":"def",held:0};
-      ev.push({k:"BUY",t:target+1,q:qty,p:close});
+      S.tiers[target]={on:true,qty:bq,px:bx,mode:off?"off":"def",held:0};
+      ev.push({k:"BUY",t:target+1,q:bq,p:bx});
     }
   }
 
@@ -726,6 +766,42 @@ function applyDay(prev, day){
 
   for(i=0;i<7;i++) if(S.tiers[i].on) S.tiers[i].held++;
   return ev;
+}
+
+/* 상태를 바꾸지 않고, 그날 서 있던 주문과 규칙 판정을 계산한다 (확인 화면용) */
+function proposeDay(prev, day){
+  var off=day.r>=50, close=day.c, cap=prev*(off?1.05:1.03), rows=[], i, t;
+  var target=-1; for(i=0;i<7;i++) if(!S.tiers[i].on){ target=i; break; }
+  var qty=0;
+  if(target>=0){
+    var budget=Math.min(S.vseed*W[target],S.cash);
+    if(budget>0) qty=Math.floor(budget/(cap*1.0007));
+  }
+  for(i=0;i<7;i++){
+    t=S.tiers[i];
+    if(!t.on||t.held<1) continue;
+    var tOff=(t.mode==="off"), fd=tOff?7:30, tgt=t.px*(tOff?1.025:1.002);
+    if(t.held>=fd)
+      rows.push({k:"MOC",i:i,qty:t.qty,px:close,fill:true,
+        why:"보유 "+t.held+"일 = "+fd+"영업일 → 종가 강제청산"});
+    else
+      rows.push({k:"LOC",i:i,qty:t.qty,px:close,fill:close>=tgt,
+        why:"목표 "+P(tgt)+" · 종가 "+P(close)+" → "+(close>=tgt?"체결":"미체결")});
+  }
+  if(target>=0&&qty>0)
+    rows.push({k:"BUY",i:target,qty:qty,px:close,fill:close<=cap,
+      why:"상한 "+P(cap)+" · 종가 "+P(close)+" → "+(close<=cap?"체결":"미체결")});
+  return {d:day.d, close:close, cap:cap, rows:rows};
+}
+
+/* 기준일 이후의 아직 확인하지 않은 거래일 */
+function pendingIdx(){
+  var h=MARKET.history, out=[], i0=-1, i;
+  if(!Array.isArray(h)||!S.base||!S.base.d) return out;
+  for(i=0;i<h.length;i++) if(h[i].d===S.base.d){ i0=i; break; }
+  if(i0<0) return out;
+  for(i=i0+1;i<h.length;i++) out.push(i);
+  return out;
 }
 
 /* 기준점 -> 최신 거래일까지 다시 계산 (멱등) */
@@ -779,6 +855,76 @@ function renderLog(){
 
 function note(m){ $("autoNote").textContent=m||""; }
 
+/* 자동 반영이 꺼져 있으면, 아직 확인하지 않은 가장 오래된 거래일의 주문을 보여준다.
+   기본값은 규칙 판정이고, 실제 체결이 달랐으면 체크와 수량·가격을 고쳐서 반영한다. */
+function renderConfirm(){
+  var box=$("confirm"), h=MARKET.history, pend=pendingIdx();
+  if(S.auto||!pend.length||!Array.isArray(h)){ box.hidden=true; cfProp=null; return; }
+  var k=pend[0];
+  cfProp=proposeDay(h[k-1].c,h[k]);
+  $("cfDate").textContent=cfProp.d;
+  $("cfNote").textContent=(pend.length>1?"확인 대기 "+pend.length+"거래일 · 오래된 날부터 · ":"")+
+    "종가 "+P(cfProp.close)+" · 매수 상한 "+P(cfProp.cap);
+  $("cfRows").innerHTML=cfProp.rows.length
+    ? cfProp.rows.map(function(r,ix){
+        var tag=(r.k==="BUY")?"buy":((r.k==="MOC")?"moc":"sell");
+        var nm=(r.k==="BUY")?"매수":((r.k==="MOC")?"청산":"매도");
+        return '<div class="cfrow">'+
+          '<label class="cfchk"><input type="checkbox" class="cfx" data-ix="'+ix+'"'+
+            (r.fill?" checked":"")+'><span class="otag '+tag+'">'+nm+'</span></label>'+
+          '<span class="cft">티어 '+(r.i+1)+'</span>'+
+          '<input type="number" class="cfq" min="0" step="1" value="'+r.qty+
+            '" aria-label="티어 '+(r.i+1)+' 수량">'+
+          '<input type="number" class="cfp" min="0" step="0.01" value="'+r.px.toFixed(2)+
+            '" aria-label="티어 '+(r.i+1)+' 체결가">'+
+          '<span class="cfw">'+r.why+'</span></div>';
+      }).join("")
+    : '<div class="lempty">이 날은 낼 주문이 없었습니다 — 확인만 누르면 넘어갑니다</div>';
+  box.hidden=false;
+}
+
+function readDec(){
+  var dec={sell:{},buy:null};
+  var xs=$("cfRows").querySelectorAll(".cfx"),
+      qs=$("cfRows").querySelectorAll(".cfq"),
+      ps=$("cfRows").querySelectorAll(".cfp");
+  Array.prototype.forEach.call(xs,function(el,ix){
+    var r=cfProp.rows[ix], q=+qs[ix].value||0, px=+ps[ix].value||0;
+    if(r.k==="BUY") dec.buy={fill:el.checked,qty:q,px:px};
+    else dec.sell[r.i]={fill:el.checked,px:px};
+  });
+  if(!dec.buy) dec.buy={fill:false,qty:0,px:0};
+  return dec;
+}
+
+/* 확인한 하루를 반영하고 기준점을 그날로 옮긴다 */
+function stepDay(dec){
+  var h=MARKET.history, pend=pendingIdx();
+  if(!pend.length) return null;
+  var k=pend[0], lg=S.log.slice();
+  var ev=applyDay(h[k-1].c,h[k],dec||null);
+  S.lastDate=h[k].d;
+  if(ev.length) lg.push({d:h[k].d,ev:ev});
+  pinCurrent();
+  S.log=lg.slice(-40);
+  return h[k].d;
+}
+
+$("bConfirm").addEventListener("click",function(){
+  if(!cfProp) return;
+  undoSnap=JSON.stringify(userState());
+  var d=stepDay(readDec());
+  mark(); syncFields(); syncAuto(); render(); renderConfirm();
+  note(d?d+" 주문을 확인해 반영했습니다":"");
+});
+$("bAll").addEventListener("click",function(){
+  undoSnap=JSON.stringify(userState());
+  var cnt=0, d;
+  while((d=stepDay(null))) cnt++;
+  mark(); syncFields(); syncAuto(); render(); renderConfirm();
+  note(cnt?cnt+"거래일을 규칙대로 반영했습니다":"");
+});
+
 function syncAuto(){
   var h=MARKET.history, has=Array.isArray(h)&&h.length>1;
   $("iAuto").checked=!!S.auto;
@@ -788,7 +934,8 @@ function syncAuto(){
   if(has){ $("iLast").min=h[0].d; $("iLast").max=h[h.length-1].d; }
   $("autoState").textContent=!has
     ? "시세 이력 없음 — 수동으로 입력하세요"
-    : (!S.auto ? "자동 반영 꺼짐 · 표를 직접 관리합니다"
+    : (!S.auto ? "확인 모드 · "+S.lastDate+"까지 반영됨"+
+                 (pendingIdx().length?" · 확인 대기 "+pendingIdx().length+"거래일":" · 확인 대기 없음")
        : (S.base&&S.base.d ? "기준 "+S.base.d+" → "+S.lastDate+" 반영됨 · 이력 "+h[0].d+" ~ "+h[h.length-1].d
                            : "기준일 미설정"));
   renderLog();
@@ -812,13 +959,16 @@ function runAuto(){
     else note("");
     mark();
   }
-  syncFields(); syncAuto(); render();
+  syncFields(); syncAuto(); render(); renderConfirm();
 }
 
 $("iAuto").addEventListener("change",function(e){
   S.auto=e.target.checked;
   if(S.auto){ pinCurrent(); runAuto(); note("자동 반영을 켰습니다 — 지금 상태를 "+((S.base&&S.base.d)||"—")+" 기준으로 잡았습니다"); }
-  else { mark(); note("자동 반영을 껐습니다 — 표를 직접 관리합니다"); syncAuto(); }
+  else {
+    pinCurrent(); mark(); syncAuto(); renderConfirm();
+    note(pendingIdx().length?"전일 주문을 확인해 반영하세요":"확인할 거래일이 없습니다");
+  }
 });
 $("iLast").addEventListener("change",function(e){
   var d=e.target.value;
