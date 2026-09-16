@@ -37,6 +37,10 @@ h1{margin:0;font-size:24px;letter-spacing:-.02em}
 .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--ink-3)}
 .asof{font-family:var(--mono);font-size:11px;color:var(--ink-3);text-align:right}
+.asof a{color:var(--wafer);font-weight:600;text-decoration:none;
+  border-bottom:1px solid transparent}
+.asof a:hover{border-bottom-color:currentColor}
+.asof a:focus-visible{outline:2px solid var(--wafer);outline-offset:2px}
 section{display:flex;flex-direction:column;gap:12px}
 .shead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px}
 h2{margin:0;font-size:13px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;
@@ -147,11 +151,14 @@ details.fold>*:not(summary){margin:14px 15px}
       <div class="eyebrow">SOXL · 7티어 순환 · 동파</div>
       <h1>백테스트</h1>
     </div>
-    <div class="asof">데이터 <b id="span">—</b><br><span id="rowcnt">—</span></div>
+    <div class="asof"><a href="https://jabcho10.github.io/dongpa-order/">주문 지시서 →</a><br>
+      데이터 <b id="span">—</b><br><span id="rowcnt">—</span></div>
   </header>
 
   <div id="nodata" class="warn" hidden>
-    <b>가격 데이터를 읽지 못했습니다.</b> 새로고침해 주세요.
+    <b>가격 데이터를 읽지 못했습니다.</b> 새로고침해 보시고,
+    로컬에서 열었다면 같은 폴더에서 <code>python make_backtest_data.py</code> 를
+    먼저 실행하세요.
   </div>
 
   <div class="setbar">
