@@ -85,26 +85,33 @@ section{display:flex;flex-direction:column;gap:12px}
 h2{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .hint{font-size:11.5px;color:var(--ink-3)}
 
-.tickets{display:flex;flex-direction:column;gap:8px}
-.tk{display:grid;grid-template-columns:80px 54px 1fr auto;gap:14px;align-items:center;
-  background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line-2);
-  border-radius:3px;padding:12px 15px}
-.tk.buy{border-left-color:var(--copper)}
-.tk.sell{border-left-color:var(--oxide)}
-.tk.moc{border-left-color:var(--alert)}
-.chip{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.06em;
-  padding:4px 0;text-align:center;border-radius:2px;background:var(--sunk);color:var(--ink-3)}
-.tk.buy .chip{background:var(--copper-soft);color:var(--copper)}
-.tk.sell .chip{background:var(--oxide-soft);color:var(--oxide)}
-.tk.moc .chip{background:var(--alert-soft);color:var(--alert)}
-.tk .tier{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--ink-2)}
-.tk .desc{font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums;line-height:1.45}
-.tk .desc em{font-style:normal;font-weight:600}
-.tk .note{font-size:11px;color:var(--ink-3);margin-top:2px}
-.tk .amt{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);text-align:right;
-  white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.5}
-.none{background:var(--sunk);border:1px dashed var(--line-2);border-radius:3px;
-  padding:18px;text-align:center;color:var(--ink-3);font-size:12.5px}
+.ord td{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.ord .ocond{font-family:var(--sans);font-size:11.5px;color:var(--ink-3)}
+.otag{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:600;
+  letter-spacing:.06em;padding:3px 9px;border-radius:2px;background:var(--sunk);color:var(--ink-3)}
+.otag.buy{background:var(--copper-soft);color:var(--copper)}
+.otag.sell{background:var(--oxide-soft);color:var(--oxide)}
+.otag.moc{background:var(--alert-soft);color:var(--alert)}
+.oempty{text-align:center;color:var(--ink-3);font-size:12.5px;padding:20px 12px}
+
+.autobar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.autobar .fin{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2)}
+.autobar .fin input{width:150px}
+.autobar .tgl{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;
+  white-space:nowrap;margin-right:4px}
+
+details.fold{border:1px solid var(--line);border-radius:3px;background:var(--panel)}
+details.fold>summary{cursor:pointer;padding:12px 15px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);font-weight:600;
+  list-style:none;display:flex;align-items:center;gap:8px}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::before{content:"▸";font-size:10px;color:var(--ink-3)}
+details.fold[open]>summary::before{content:"▾"}
+details.fold[open]>summary{border-bottom:1px solid var(--line)}
+details.fold>*:not(summary){margin:14px 15px}
+details.fold .ref{margin:0}
+.foot{font-size:11.5px;color:var(--ink-3);line-height:1.75}
+.foot b{color:var(--ink-2);font-weight:600}
 
 pre.txt{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:3px;
   padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:11.5px;line-height:1.85;
@@ -213,12 +220,9 @@ footer b{color:var(--ink-2);font-weight:600}
   .ref{grid-template-columns:1fr}
   .rcol{padding:14px}
 
-  /* 지시 카드: 칩·티어를 한 줄로 올리고 본문은 전체 폭을 쓴다 */
-  .tk{grid-template-columns:auto 1fr;align-items:center;row-gap:7px;column-gap:10px;
-    padding:12px 13px}
-  .tk .chip{padding:4px 9px}
-  .tk .tkbody{grid-column:1/-1}
-  .tk .amt{grid-column:1/-1;text-align:left}
+  .autobar .fin{width:100%}
+  .autobar .fin input{flex:1;width:auto}
+  details.fold>*:not(summary){margin:12px 13px}
 
   pre.txt{font-size:10.5px;line-height:1.8;padding:12px 13px}
 
@@ -265,11 +269,10 @@ footer b{color:var(--ink-2);font-weight:600}
     <div>
       <div class="eyebrow">SOXL · 7티어 순환 · 확정 규칙</div>
       <h1>동파 주문 지시서</h1>
-      <div class="sub">확정 규칙으로 당일 LOC·MOC 주문을 산출합니다. 수수료는 매수·매도 각각 0.07% 확정.</div>
     </div>
     <div class="asof">
       주문일 <b id="hOrder">—</b><br>
-      기준 종가일 <b id="hBase">—</b>
+      기준 종가 <b id="hBase">—</b>
     </div>
   </header>
 
@@ -284,7 +287,7 @@ footer b{color:var(--ink-2);font-weight:600}
     <div class="cell">
       <div class="k">전일 SOXL 종가</div>
       <div class="v" id="vPrev">—</div>
-      <div class="n">주문 산출 기준가</div>
+      <div class="n" id="nRsi">—</div>
     </div>
     <div class="cell">
       <div class="k">LOC 매수 상한</div>
@@ -292,78 +295,69 @@ footer b{color:var(--ink-2);font-weight:600}
       <div class="n" id="nCap">—</div>
     </div>
     <div class="cell">
-      <div class="k">QQQ 주간 RSI(14)</div>
-      <div class="v" id="vRsi">—</div>
-      <div class="n" id="nRsi">—</div>
+      <div class="k">총자산</div>
+      <div class="v" id="vTotal">—</div>
+      <div class="n" id="nTotal">—</div>
     </div>
   </div>
 
   <section>
     <div class="shead">
-      <h2>주문 지시</h2>
-      <div class="hint">장 마감 동시호가 대상 · 매도 처리 후 매수 체결 판단</div>
+      <h2>오늘의 주문</h2>
+      <div class="hint">장 마감 동시호가 · 매도·청산 처리 후 매수 체결 판단</div>
     </div>
-    <div class="tickets" id="tickets"></div>
-  </section>
-
-  <section>
-    <div class="shead">
-      <h2>주문 전문</h2>
-      <div class="hint">기록·전달용</div>
+    <div class="tscroll">
+      <table class="ord">
+        <thead><tr>
+          <th>구분</th><th>티어</th><th>주문방법</th><th class="n">주문가</th>
+          <th class="n">수량</th><th>체결 조건</th>
+        </tr></thead>
+        <tbody id="obody"></tbody>
+      </table>
     </div>
-    <pre class="txt" id="plain">—</pre>
     <div class="acts">
       <button type="button" id="bCopy">주문 전문 복사</button>
       <span class="save" id="copyState"></span>
     </div>
+    <pre class="txt" id="plain" hidden>—</pre>
   </section>
 
   <section>
     <div class="shead">
-      <h2>티어 현황</h2>
-      <div class="hint">보유 티어의 수량·매수가·매수 모드·보유일수를 입력하면 주문이 갱신됩니다</div>
+      <h2>보유 현황</h2>
+      <div class="hint" id="autoState">—</div>
     </div>
     <div class="tscroll">
       <table>
         <thead><tr>
           <th>티어</th><th class="n">비중</th><th class="n">배정액</th><th>보유</th>
           <th class="n">수량</th><th class="n">매수가</th><th>매수 모드</th>
-          <th class="n">보유일</th><th class="n">목표가</th><th class="n">청산까지</th>
+          <th class="n">보유일</th><th class="n">매도 목표</th><th class="n">청산까지</th>
         </tr></thead>
         <tbody id="tbody"></tbody>
       </table>
     </div>
+    <div class="autobar">
+      <label class="tgl"><input type="checkbox" id="iAuto"> 자동 반영</label>
+      <label class="fin">기준일 <input type="date" id="iLast"></label>
+      <button type="button" id="bPin">현재 상태로 고정</button>
+      <button type="button" id="bUndo" disabled>되돌리기</button>
+      <button type="button" id="bNext">보유일 +1</button>
+      <button type="button" id="bClear">전 티어 비우기</button>
+    </div>
     <div class="acts">
-      <button type="button" id="bNext">보유일수 +1</button>
-      <button type="button" id="bClear">전 티어 비우기 (새 사이클)</button>
+      <span class="save" id="autoNote"></span>
       <span class="save" id="saveState">예시 상태 — 실제 보유 내역으로 바꿔 사용하세요</span>
     </div>
   </section>
 
-  <section>
-    <div class="shead">
-      <h2>자동 반영</h2>
-      <div class="hint">기준 거래일의 보유 현황에서 출발해, 확정 종가로 체결·청산을 판정하며 최신 거래일까지 진행합니다</div>
-    </div>
-    <div class="autotop">
-      <label class="tgl"><input type="checkbox" id="iAuto"> 자동 반영</label>
-      <div class="f"><label for="iLast">기준 거래일</label>
-        <input type="date" id="iLast"></div>
-      <div class="autostate" id="autoState">—</div>
-    </div>
+  <details class="fold">
+    <summary>반영 내역</summary>
     <div class="autolog" id="autoLog"></div>
-    <div class="acts">
-      <button type="button" id="bPin">현재 상태를 기준으로 고정</button>
-      <button type="button" id="bUndo" disabled>되돌리기</button>
-      <span class="save" id="autoNote"></span>
-    </div>
-  </section>
+  </details>
 
-  <section>
-    <div class="shead">
-      <h2>계좌 · 시세</h2>
-      <div class="hint" id="feedNote">—</div>
-    </div>
+  <details class="fold">
+    <summary>설정 · 시세</summary>
     <div class="fields">
       <div class="f"><label for="iSeed">사이클 시작 가상 시드 ($)</label>
         <input type="number" id="iSeed" step="100" min="0"></div>
@@ -380,10 +374,11 @@ footer b{color:var(--ink-2);font-weight:600}
       <button type="button" id="bRevert">자동 갱신값으로 되돌리기</button>
       <span class="save" id="feedState">—</span>
     </div>
-  </section>
+    <div class="hint" id="feedNote">—</div>
+  </details>
 
-  <section>
-    <div class="shead"><h2>확정값 참조</h2></div>
+  <details class="fold">
+    <summary>확정 규칙 참조</summary>
     <div class="ref">
       <div class="rcol">
         <h3>모드별 파라미터</h3>
@@ -418,16 +413,12 @@ footer b{color:var(--ink-2);font-weight:600}
         </ol>
       </div>
     </div>
-  </section>
-
-  <footer>
-    <b>산출 근거</b> — 각 포지션의 목표수익률과 강제청산 기간은 매수 체결일 모드로 확정되며, 이후 시장 모드가 바뀌어도 변경하지 않습니다.
+    <p class="foot">각 포지션의 목표수익률과 강제청산 기간은 <b>매수 체결일 모드</b>로 확정되며 이후 모드가 바뀌어도 변경하지 않습니다.
     LOC 매수는 당일 종가가 상한 이하일 때만 체결되고, 체결가는 상한가가 아닌 <b>당일 종가</b>입니다.
-    주문 수량은 미래 종가를 알 수 없으므로 상한가와 매수 수수료를 기준으로 <b>floor</b> 계산합니다.
+    주문 수량은 미래 종가를 알 수 없으므로 상한가와 매수 수수료 기준 <b>floor</b> 계산합니다.
     매수 체결 당일에는 <b>그 티어만</b> 매도 판단에서 빠지며, 같은 날 다른 티어의 LOC 매도와 MOC 청산은 정상 처리합니다.
-    당일 매도·청산된 티어는 다음 영업일부터 다시 빈 티어로 씁니다.
-    이 페이지는 확정 규칙의 주문 산출 보조자료이며, 투자 판단과 주문 집행의 책임은 이용자에게 있습니다.
-  </footer>
+    이 페이지는 주문 산출 보조자료이며, 투자 판단과 주문 집행의 책임은 이용자에게 있습니다.</p>
+  </details>
 </div>
 
 <script>
@@ -490,19 +481,32 @@ function calc(){
   return {off:off,cap:cap,alloc:alloc,target:target,qty:qty,budget:budget,rows:rows};
 }
 
+function orow(cls,kind,how,tier,px,qty,cond){
+  return '<tr><td data-label="구분"><span class="otag '+cls+'">'+kind+'</span></td>'+
+    '<td data-label="티어">티어 '+tier+'</td>'+
+    '<td data-label="주문방법">'+how+'</td>'+
+    '<td class="n" data-label="주문가">'+px+'</td>'+
+    '<td class="n" data-label="수량">'+N(qty)+'주</td>'+
+    '<td data-label="체결 조건" class="ocond">'+cond+'</td></tr>';
+}
+
 function render(){
   var c=calc();
   $("hOrder").textContent=S.orderDate||"—";
   $("hBase").textContent=S.baseDate||"—";
   $("cMode").className="cell "+(c.off?"off":"def");
   $("vMode").textContent=c.off?"공세모드":"수비모드";
-  $("nMode").textContent=c.off?"목표 +2.5% · 7영업일 청산":"목표 +0.2% · 30영업일 청산";
+  $("nMode").textContent=(c.off?"목표 +2.5% · 7영업일 청산":"목표 +0.2% · 30영업일 청산")+
+    " · RSI "+(+S.rsi).toFixed(2);
   $("vPrev").textContent=P(S.prev);
+  $("nRsi").textContent="기준 "+(S.baseDate||"—")+
+    (MARKET.weekEnd?" · RSI는 "+MARKET.weekEnd+" 종가":"");
   $("vCap").textContent=P(c.cap);
   $("nCap").textContent="전일 종가 "+(c.off?"+5%":"+3%");
-  $("vRsi").textContent=(+S.rsi).toFixed(2);
-  $("nRsi").textContent=(c.off?"≥ 50 → 공세":"< 50 → 수비")+
-    (MARKET.weekEnd?" · "+MARKET.weekEnd+" 종가 기준":"");
+  var pos=0;
+  c.rows.forEach(function(r){ if(r.on) pos+=r.qty*S.prev; });
+  $("vTotal").textContent=P(S.cash+pos,0);
+  $("nTotal").textContent="주식 "+P(pos,0)+" · 현금 "+P(S.cash,0);
 
   /* 시세 신선도 — 자동 갱신이 밀리면 낡은 종가로 주문하는 사고를 막습니다 */
   var age=null;
@@ -524,38 +528,21 @@ function render(){
   $("feedState").textContent=feedSrc+" · 갱신 "+(MARKET.updated||"—")+
     (age!==null?" · 종가 경과 "+age+"일":"");
 
-  var tk=[], i;
+  var ob=[];
   c.rows.forEach(function(r){ if(!r.due) return;
-    tk.push('<div class="tk moc"><div class="chip">청산 MOC</div><div class="tier">티어 '+(r.i+1)+'</div>'+
-      '<div class="tkbody"><div class="desc"><em>'+N(r.qty)+'주</em> 전량 종가 청산</div>'+
-      '<div class="note">보유 '+r.held+'일 = '+r.fd+'영업일 도달 · 목표가 무관 강제청산</div></div>'+
-      '<div class="amt">매수가 '+P(r.px)+'</div></div>');
-  });
+    ob.push(orow("moc","청산","MOC",r.i+1,"종가 전량",r.qty,
+      "보유 "+r.held+"일 = "+r.fd+"영업일 도달 · 목표가와 무관하게 청산")); });
   c.rows.forEach(function(r){ if(!r.sellable) return;
-    tk.push('<div class="tk sell"><div class="chip">매도 LOC</div><div class="tier">티어 '+(r.i+1)+'</div>'+
-      '<div class="tkbody"><div class="desc"><em>'+N(r.qty)+'주</em> 지정 <em>'+P(r.tgt)+'</em></div>'+
-      '<div class="note">당일 종가 ≥ '+P(r.tgt)+'일 때 종가 체결 · '+(r.tOff?"공세":"수비")+
-      ' 매수분 · 강제청산까지 '+r.left+'영업일</div></div>'+
-      '<div class="amt">매수가 '+P(r.px)+'</div></div>');
-  });
-  if(c.target>=0&&c.qty>0){
-    tk.push('<div class="tk buy"><div class="chip">매수 LOC</div><div class="tier">티어 '+(c.target+1)+'</div>'+
-      '<div class="tkbody"><div class="desc"><em>'+N(c.qty)+'주</em> 상한 <em>'+P(c.cap)+'</em></div>'+
-      '<div class="note">당일 종가 ≤ '+P(c.cap)+'일 때만 체결 · 체결가는 당일 종가 · 목표가는 체결 후 확정</div></div>'+
-      '<div class="amt">배정 '+P(c.budget,0)+'<br>최대소요 '+P(c.qty*c.cap*1.0007,0)+'</div></div>');
-  }
-  c.rows.forEach(function(r){ if(!(r.on&&r.held===0)) return;
-    tk.push('<div class="tk"><div class="chip">대기</div><div class="tier">티어 '+(r.i+1)+'</div>'+
-      '<div class="tkbody"><div class="desc">'+N(r.qty)+'주 매도 주문 없음</div>'+
-      '<div class="note">이 티어만 매수 당일 매도 제외 (다른 티어는 정상 판단) · 다음 영업일부터 LOC 매도</div></div>'+
-      '<div class="amt">매수가 '+P(r.px)+'</div></div>');
-  });
-  if(!tk.length){
-    tk.push('<div class="none">'+(c.target<0
-      ? '7개 티어 모두 보유 중이며 매도·청산 대상도 없습니다 — 당일 주문 없음'
-      : '주문 수량이 0주로 계산되어 당일 매수하지 않습니다 — 배정액과 주문 가능 현금을 확인하세요')+'</div>');
-  }
-  $("tickets").innerHTML=tk.join("");
+    ob.push(orow("sell","매도","LOC",r.i+1,P(r.tgt),r.qty,
+      "종가 ≥ "+P(r.tgt)+" 일 때 체결 · 매수가 "+P(r.px)+" · 청산까지 "+r.left+"영업일")); });
+  if(c.target>=0&&c.qty>0)
+    ob.push(orow("buy","매수","LOC",c.target+1,P(c.cap),c.qty,
+      "종가 ≤ "+P(c.cap)+" 일 때 체결 · 체결가는 당일 종가 · 배정 "+P(c.budget,0)));
+  if(!ob.length)
+    ob.push('<tr><td colspan="6" class="oempty">'+(c.target<0
+      ? "7개 티어 모두 보유 중이고 매도·청산 대상도 없습니다 — 오늘 낼 주문이 없습니다"
+      : "주문 수량이 0주로 계산되어 오늘은 매수하지 않습니다 — 배정액과 현금을 확인하세요")+'</td></tr>');
+  $("obody").innerHTML=ob.join("");
 
   var L=[];
   L.push("동파 주문 지시서 · "+S.orderDate+" · "+(c.off?"공세모드":"수비모드")+
