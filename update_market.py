@@ -45,36 +45,74 @@ def weekly_rsi(ticker, n=N):
     return {k: (last[k], float(rsi.loc[last[k]])) for k in last}
 
 
-def latest_close(ticker, tries=3, wait=15):
-    """가장 최근 거래일의 '확정된' 종가를 돌려준다.
+def _quote_close(ticker, pending, prev_close):
+    """일봉 Close가 비어 있을 때 마감 시세(quote)에서 확정 종가를 가져온다.
+
+    Yahoo는 정규장이 끝난 뒤에도 일봉의 Close를 몇 시간씩 비워두는 일이 잦은데,
+    quote 쪽 regularMarketPrice 는 마감 직후 확정된다. 다만 장중 값을 종가로
+    쓰면 안 되므로 다음을 모두 만족할 때만 채택한다.
+
+      - 정규장이 이미 끝났다 (marketState)
+      - 그 가격의 시각이 pending(= Close가 빈 봉)의 거래일이다
+      - quote 가 보는 직전 종가가 우리가 확인한 직전 거래일 종가와 같다
+
+    하나라도 어긋나면 None 을 돌려주고, 호출한 쪽이 실패로 처리한다.
+    """
+    import pandas as pd, yfinance as yf
+    q = yf.Ticker(ticker).info
+    if str(q.get("marketState") or "") not in ("POST", "POSTPOST", "CLOSED",
+                                               "PRE", "PREPRE"):
+        return None                                  # 정규장이 아직 안 끝났다
+    px, ts = q.get("regularMarketPrice"), q.get("regularMarketTime")
+    if px is None or ts is None:
+        return None
+    if not isinstance(ts, (int, float)):
+        ts = pd.Timestamp(ts).timestamp()
+    tz = q.get("exchangeTimezoneName") or "America/New_York"
+    when = pd.Timestamp(int(ts), unit="s", tz="UTC").tz_convert(tz)
+    if when.date() != pending:                       # 이 거래일의 가격이 아니다
+        return None
+    ref = q.get("regularMarketPreviousClose")
+    if ref is None or abs(float(ref) - prev_close) > 0.005:
+        return None                                  # 직전 종가가 안 맞으면 믿지 않는다
+    return float(px)
+
+
+def closes(ticker, period="6mo", tries=3, wait=15):
+    """확정된 종가만 담은 시리즈를 돌려준다 (마지막 값 = 최근 거래일 종가).
 
     Yahoo는 방금 마감된 세션의 봉을 Open·Volume만 채운 채 Close=NaN 으로
     잠시 내려준다. 이때 NaN을 건너뛰고 그 전날 종가를 쓰면 이미 지나간 세션용
-    주문을 산출하게 되므로, 재시도 후에도 확정되지 않으면 실패로 처리한다.
+    주문을 산출하게 되므로, 재시도 -> 마감 시세 보완 순으로 확정 종가를 구하고
+    그래도 얻지 못하면 실패로 처리한다.
     """
     import pandas as pd
-    last = None
+    s = None
     for i in range(tries):
-        s = _frame(ticker, "1mo")["Close"]
+        s = _frame(ticker, period)["Close"]
         if s.empty:
             raise RuntimeError(f"{ticker} 종가 데이터 없음")
-        last = s
         if pd.notna(s.iloc[-1]):
-            return s.index[-1].date(), float(s.iloc[-1])
+            return s.dropna()
         if i < tries - 1:
             print(f"  {ticker} 최신 봉({s.index[-1]:%Y-%m-%d}) 종가 미확정 — "
                   f"{wait}초 후 재시도 ({i + 1}/{tries - 1})")
             time.sleep(wait)
 
-    pending = last.index[-1].date()
-    good = last.dropna()
+    pending = s.index[-1].date()
+    good = s.dropna()
     if good.empty:
         raise RuntimeError(f"{ticker} 확정 종가 없음")
-    raise RuntimeError(
-        f"{ticker} {pending} 종가가 아직 확정되지 않았습니다 "
-        f"(직전 확정 종가는 {good.index[-1].date()}). "
-        f"지나간 세션용 주문을 만들지 않기 위해 갱신을 건너뜁니다 — "
-        f"잠시 후 워크플로를 다시 실행하세요.")
+
+    px = _quote_close(ticker, pending, float(good.iloc[-1]))
+    if px is None:
+        raise RuntimeError(
+            f"{ticker} {pending} 종가가 아직 확정되지 않았습니다 "
+            f"(직전 확정 종가는 {good.index[-1].date()}). "
+            f"지나간 세션용 주문을 만들지 않기 위해 갱신을 건너뜁니다 — "
+            f"잠시 후 워크플로를 다시 실행하세요.")
+    print(f"  {ticker} {pending} 일봉 Close 미확정 — 마감 시세로 보완 (${px:.2f})")
+    return pd.concat([good, pd.Series({s.index[-1]: px})])
 
 
 def next_business_day(d):
@@ -86,7 +124,8 @@ def next_business_day(d):
 
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
-    base_date, prev = latest_close("SOXL")
+    soxl = closes("SOXL")
+    base_date, prev = soxl.index[-1].date(), float(soxl.iloc[-1])
 
     # 신선도 가드: 주말·공휴일을 감안해도 4일을 넘는 공백은 데이터 이상으로 본다.
     age = (datetime.now(timezone.utc).date() - base_date).days
@@ -108,7 +147,7 @@ def main():
     # 페이지가 놓친 거래일을 스스로 따라잡을 수 있도록 최근 종가 이력을 싣는다.
     # 각 거래일에 그날 적용되는 주간 RSI(직전 주 마지막 거래일 값)를 함께 넣는다.
     hist = []
-    for ts, c in _frame("SOXL", "6mo")["Close"].dropna().items():
+    for ts, c in soxl.items():
         hd = ts.date()
         pk = (hd - timedelta(days=7)).isocalendar()[:2]
         if pk not in wk:
