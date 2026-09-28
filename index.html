@@ -3,9 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#f4f6f8" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0e1218" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#ffffff">
 <meta name="description" content="SOXL 7티어 순환 매매(동파 전략)의 당일 LOC·MOC 주문 지시서">
 <title>동파 주문 지시서</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,35 +12,20 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 :root{
-  --paper:#f4f6f8; --panel:#ffffff; --sunk:#eceff3; --line:#d6dbe2; --line-2:#c2c9d3;
-  --ink:#161b22; --ink-2:#4b5563; --ink-3:#7a8492;
-  --wafer:#3b4a6b; --wafer-soft:#e5e9f1;
-  --copper:#a35a2e; --copper-soft:#f6e9df;
-  --oxide:#1f6b62; --oxide-soft:#dff0ed;
-  --alert:#9c2f47; --alert-soft:#f9e4e8;
-  --sans:"IBM Plex Sans KR","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
-  --mono:"IBM Plex Mono","Consolas",ui-monospace,monospace;
-}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --paper:#0e1218; --panel:#161c25; --sunk:#1c232e; --line:#2b3441; --line-2:#3b4553;
-    --ink:#e8ecf1; --ink-2:#a8b3c1; --ink-3:#78838f;
-    --wafer:#93a7cd; --wafer-soft:#222c3d;
-    --copper:#d99460; --copper-soft:#33241a;
-    --oxide:#5cb8ab; --oxide-soft:#152e2b;
-    --alert:#e0798f; --alert-soft:#331a20;
-  }
-}
-:root[data-theme="dark"]{
-  --paper:#0e1218; --panel:#161c25; --sunk:#1c232e; --line:#2b3441; --line-2:#3b4553;
-  --ink:#e8ecf1; --ink-2:#a8b3c1; --ink-3:#78838f;
-  --wafer:#93a7cd; --wafer-soft:#222c3d;
-  --copper:#d99460; --copper-soft:#33241a;
-  --oxide:#5cb8ab; --oxide-soft:#152e2b;
-  --alert:#e0798f; --alert-soft:#331a20;
+  --paper:#ffffff; --panel:#f6f6f6; --sunk:#ebebeb; --line:#e3e3e3; --line-2:#cfcfcf;
+  --ink:#121212; --ink-2:#535353; --ink-3:#6a6a6a;
+  --wafer:#1a6fd6; --wafer-soft:#e2ecfb;
+  --copper:#b35c00; --copper-soft:#fdecd6;
+  --oxide:#117a37; --oxide-soft:#d9f5e3;
+  --alert:#d42d3c; --alert-soft:#fde4e6;
+  --accent:#1ed760; --accent-hi:#3be477; --accent-ink:#117a37; --hover:#ececec;
+  --sh-card:rgba(0,0,0,.08) 0 4px 12px; --sh-heavy:rgba(0,0,0,.14) 0 8px 24px;
+  --sans:"IBM Plex Sans KR","Helvetica Neue","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+  --mono:var(--sans);
+  --code:"IBM Plex Mono","Consolas",ui-monospace,monospace;
 }
 *{box-sizing:border-box}
-html{color-scheme:light dark;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html{color-scheme:light;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
   font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;
   overflow-wrap:break-word}
@@ -290,6 +274,91 @@ footer b{color:var(--ink-2);font-weight:600}
  .autostate{padding-bottom:0;width:100%}
  .lrow{flex-direction:column;gap:4px}
 }
+
+/* ── Spotify 테마 (DESIGN-spotify.md) ──────────────────────────────
+   흰 바탕 위에 옅은 회색 면으로 층을 나누고, 초록은 주요 동작·활성 상태에만 쓴다.
+   버튼은 알약 모양, 카드는 테두리 없이 8px 둥근 면. */
+html{color-scheme:light}
+body{line-height:1.5}
+.num,td,.cell .v{font-variant-numeric:tabular-nums}
+header{border-bottom:none;padding:26px 24px 22px;border-radius:8px;
+  background:linear-gradient(180deg,#c9f2d6 0%,var(--panel) 100%);box-shadow:var(--sh-card)}
+h1{font-size:24px;font-weight:700;letter-spacing:-.01em}
+.eyebrow{font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--ink-2)}
+.asof{font-family:var(--sans);color:var(--ink-2)}
+.asof b{color:var(--ink)}
+.asof a{display:inline-block;margin-bottom:6px;padding:4px 14px;border:1px solid #878787;
+  border-radius:9999px;color:var(--ink);font-weight:700;font-size:12px;
+  transition:border-color .15s,transform .1s}
+.asof a:hover{border-color:var(--ink);transform:scale(1.04)}
+h2{font-family:var(--sans);font-size:18px;font-weight:700;letter-spacing:-.01em;
+  text-transform:none;color:var(--ink)}
+.hint{color:var(--ink-3)}
+
+.setbar,.chart,details.fold,.tscroll,.fields,.autolog,.warn,.banner,pre.txt{
+  border:none;border-radius:8px}
+.setbar,.chart,details.fold,.tscroll{background:var(--panel)}
+.strip{gap:8px;background:none;border:none;overflow:visible}
+.cell{border-radius:8px;padding:15px 16px;transition:background-color .15s}
+.cell:hover{background:var(--hover)}
+.cell .k{font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:0;
+  text-transform:none;color:var(--ink-2)}
+.cell .v{font-family:var(--sans);font-size:22px;font-weight:700;letter-spacing:-.01em}
+.cell .n{color:var(--ink-3)}
+pre.txt{font-family:var(--code)}
+
+th{font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:0;text-transform:none;
+  color:var(--ink-2);background:transparent;border-bottom:1px solid var(--line-2)}
+td{border-bottom-color:var(--line)}
+
+input,select{border:none;border-radius:4px;background:var(--paper);color:var(--ink);
+  box-shadow:inset 0 0 0 1px #b3b3b3;transition:box-shadow .12s}
+input:hover,select:hover{box-shadow:inset 0 0 0 1px #7c7c7c}
+input:focus,select:focus,input:focus-visible,select:focus-visible{outline:none;
+  box-shadow:inset 0 0 0 2px var(--ink)}
+input:disabled,select:disabled{box-shadow:none;background:var(--sunk);color:var(--ink-3)}
+input[type=checkbox]{box-shadow:none;accent-color:var(--accent)}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+button{font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:.02em;
+  padding:8px 18px;border:none;border-radius:9999px;background:var(--sunk);color:var(--ink);
+  transition:transform .1s,background-color .15s}
+button:hover{background:var(--hover);color:var(--ink);transform:scale(1.04)}
+button:active{transform:scale(1)}
+button:disabled{opacity:.4;cursor:default;transform:none;background:var(--sunk)}
+button.pri{background:var(--accent);color:#000}
+button.pri:hover{background:var(--accent-hi);color:#000}
+
+details.fold>summary{font-family:var(--sans);font-size:14px;font-weight:700;letter-spacing:0;
+  text-transform:none;color:var(--ink);border-radius:8px;transition:background-color .15s}
+details.fold>summary:hover{background:var(--hover)}
+details.fold[open]>summary{border-bottom-color:var(--line);border-radius:8px 8px 0 0}
+
+.otag,.badge,.lrow b{border-radius:9999px}
+.otag{padding:3px 11px}
+.f label{font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:0;
+  text-transform:none;color:var(--ink-2)}
+.fields{background:transparent;padding:4px 0 0}
+.confirm{border:none;border-radius:8px;box-shadow:inset 0 0 0 1px var(--copper),var(--sh-card)}
+.chead,.cfrow,.lrow{border-bottom-color:var(--line)}
+.ref{gap:8px;background:none;border:none;overflow:visible}
+.rcol{background:var(--sunk);border-radius:8px}
+.rcol h3{font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:0;
+  text-transform:none;color:var(--ink-2)}
+.kv{border-bottom:1px solid var(--line)}
+.kv.fixed span:last-child{color:var(--accent-ink)}
+@media (hover:hover) and (min-width:861px){tbody tr:hover td{background:var(--hover)}
+  tbody tr.due:hover td{background:var(--alert-soft)}}
+@media (max-width:860px){
+  tr{border:none;border-left:3px solid var(--line-2);border-radius:8px;box-shadow:var(--sh-card)}
+  tr.empty{border-left-color:var(--line)}
+  tr.due{border-left-color:var(--alert)}
+  td::before{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:0;
+    text-transform:none;color:var(--ink-2)}
+  .c-tier,.c-on{border-bottom-color:var(--line)}
+  .c-tgt{border-top-color:var(--line)}
+}
+@media (max-width:640px){header{padding:20px 16px 18px}}
 </style>
 </head>
 <body>
@@ -347,7 +416,7 @@ footer b{color:var(--ink-2);font-weight:600}
       </table>
     </div>
     <div class="acts">
-      <button type="button" id="bCopy">주문 전문 복사</button>
+      <button type="button" id="bCopy" class="pri">주문 전문 복사</button>
       <span class="save" id="copyState"></span>
     </div>
     <pre class="txt" id="plain" hidden>—</pre>
@@ -369,7 +438,7 @@ footer b{color:var(--ink-2);font-weight:600}
         <span class="hint" id="cfNote"></span></div>
       <div id="cfRows"></div>
       <div class="acts">
-        <button type="button" id="bConfirm">확인하고 반영</button>
+        <button type="button" id="bConfirm" class="pri">확인하고 반영</button>
         <button type="button" id="bAll">남은 날 규칙대로 전부</button>
       </div>
     </div>
