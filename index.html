@@ -144,7 +144,7 @@ td.n,th.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
 input,select,button{font-family:var(--mono);font-size:13px;color:var(--ink);
   background:var(--panel);border:1px solid var(--line-2);border-radius:2px;padding:5px 7px}
-input[type=number],input[type=date]{font-variant-numeric:tabular-nums}
+input[type=number],input[type=date],input[inputmode=decimal]{font-variant-numeric:tabular-nums}
 td input,td select{width:100%;min-width:70px;text-align:right;padding:4px 6px}
 td select{text-align:left;min-width:132px}
 input[type=checkbox]{width:15px;height:15px;accent-color:var(--wafer);padding:0;cursor:pointer;
@@ -701,7 +701,7 @@ function render(){
         (r.on?"checked":"")+' aria-label="티어 '+(r.i+1)+' 보유"></td>'+
       '<td class="n c-qty" data-label="수량"><input type="number" id="t'+r.i+'qty" data-i="'+r.i+'" data-f="qty" min="0" step="1" value="'+
         r.qty+'"'+(r.on?"":" disabled")+' aria-label="티어 '+(r.i+1)+' 수량"></td>'+
-      '<td class="n c-px" data-label="매수가"><input type="number" id="t'+r.i+'px" data-i="'+r.i+'" data-f="px" min="0" step="0.01" value="'+
+      '<td class="n c-px" data-label="매수가"><input type="text" inputmode="decimal" autocomplete="off" id="t'+r.i+'px" data-i="'+r.i+'" data-f="px" value="'+
         r.px+'"'+(r.on?"":" disabled")+' aria-label="티어 '+(r.i+1)+' 매수가"></td>'+
       '<td class="c-mode" data-label="매수 모드"><select id="t'+r.i+'mode" data-i="'+r.i+'" data-f="mode"'+(r.on?"":" disabled")+
         ' aria-label="티어 '+(r.i+1)+' 매수 모드">'+
@@ -719,7 +719,8 @@ function render(){
     var ev=(el.type==="checkbox"||el.tagName==="SELECT")?"change":"input";
     el.addEventListener(ev,function(e){
       var i=+e.target.dataset.i, f=e.target.dataset.f, id=e.target.id;
-      var pos=(ev==="input"&&e.target.setSelectionRange)?null:null;
+      /* 표를 다시 그려도 입력 중인 글자("12." 등)와 커서 위치를 지킨다 */
+      var raw=e.target.value, pos=(e.target.type==="text")?e.target.selectionStart:null;
       if(f==="on"){
         S.tiers[i].on=e.target.checked;
         if(!e.target.checked){ S.tiers[i].qty=0; S.tiers[i].px=0; S.tiers[i].held=0; S.tiers[i].bd=""; }
@@ -729,11 +730,14 @@ function render(){
         var hd=heldFromDate(e.target.value);       /* 체결일로 보유일을 다시 센다 */
         if(hd!==null&&hd>=1) S.tiers[i].held=hd;
       }
-      else { S.tiers[i][f]=+e.target.value||0; }
+      else { S.tiers[i][f]=parseFloat(e.target.value.replace(/,/g,""))||0; }
       pinCurrent();           /* 손으로 고친 상태가 새 기준점이 된다 */
       mark(); render(); syncAuto();
       var back=document.getElementById(id);
-      if(back&&ev==="input") back.focus();
+      if(back&&ev==="input"){
+        back.focus();
+        if(pos!==null){ back.value=raw; back.setSelectionRange(pos,pos); }
+      }
     });
   });
 }
