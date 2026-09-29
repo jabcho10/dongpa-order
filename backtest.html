@@ -310,11 +310,14 @@ details.fold[open]>summary{border-bottom-color:var(--line);border-radius:8px 8px
       <div class="f"><label for="pDefCap">수비 매수 상한 (%)</label><input type="number" id="pDefCap" step="0.1"></div>
       <div class="f"><label for="pDefTgt">수비 익절 (%)</label><input type="number" id="pDefTgt" step="0.1"></div>
       <div class="f"><label for="pDefFd">수비 청산 (영업일)</label><input type="number" id="pDefFd" step="1" min="1"></div>
+      <div class="f"><label for="pHold">보유 중 상한 (익절가 −$0.01)</label><select id="pHold">
+        <option value="on">적용 (확정)</option><option value="off">미적용 (옛 규칙)</option></select></div>
       <div class="f"><label for="pFee">편도 수수료 (%)</label><input type="number" id="pFee" step="0.01"></div>
       <div class="f"><label for="pGain">이익 복리율 (%)</label><input type="number" id="pGain" step="5"></div>
       <div class="f"><label for="pLoss">손실 복리율 (%)</label><input type="number" id="pLoss" step="5"></div>
     </div>
     <p class="ref">확정값은 공세 +5% / +2.5% / 7영업일, 수비 +3% / +0.2% / 30영업일,
+    보유 티어가 있으면 매수 상한을 보유 최저 익절가 −$0.01로 제한,
     수수료 편도 0.07%, 복리율 이익 60% / 손실 30%, RSI 기준 50입니다.
     이 전략은 티어 회전이 빨라 <b>수수료율에 민감</b>하므로, 성과를 인용할 때는 반드시 0.07% 기준값을 씁니다.<br>
     규칙서 §11의 참고 수치는 <b>종료일 2026-08-27</b> 기준입니다. 기본값은 데이터 마지막 날까지 돌리므로 수치가 다릅니다.</p>
@@ -349,11 +352,12 @@ var W=[.18,.16,.15,.14,.13,.12,.12];
 var SPLIT_RATIO=15;
 var DEF={seed:100000, thr:50, reg:"q",
   offCap:5, offTgt:2.5, offFd:7, defCap:3, defTgt:0.2, defFd:30,
-  fee:0.07, gain:60, loss:30};
+  fee:0.07, gain:60, loss:30, hold:"on"};
 
 function $(id){ return document.getElementById(id); }
 function P(n,d){ d=(d===undefined)?2:d;
   return "$"+(+n).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function cent(x){ return Math.round(x*100)/100; }
 function N(n){ return (+n).toLocaleString("en-US"); }
 function pct(x,d){ d=(d===undefined)?2:d; return (x*100).toFixed(d)+"%"; }
 /* 월별 격자 한 칸 — 색 농도는 +-15%를 최대로 본다 */
@@ -393,7 +397,12 @@ function runBT(o){
     var target=-1;                                 /* (2) 장 시작 빈 티어 */
     for(k=0;k<7;k++) if(!tiers[k]){ target=k; break; }
 
-    var qty=0, cap=prev*capMult;                   /* (3) 정수 주문 수량 */
+    var qty=0, cap=prev*capMult;                   /* (3) LOC 매수 상한 · 정수 주문 수량 */
+    if(o.hold==="on"){                             /* 보유 중이면 최저 익절가 -$0.01 로 제한 */
+      var mt=Infinity;
+      for(k=0;k<7;k++) if(tiers[k]) mt=Math.min(mt,tiers[k].tgt);
+      if(mt<Infinity) cap=Math.min(cap,cent(cent(mt)-0.01));
+    }
     if(target>=0){
       var budget=Math.min(alloc[target],cash);
       if(budget>0) qty=Math.floor(budget/(cap*(1+fee)));
@@ -637,14 +646,14 @@ function opts(){
     reg:$("pReg").value, from:$("pFrom").value, to:$("pTo").value,
     offCap:+$("pOffCap").value, offTgt:+$("pOffTgt").value, offFd:+$("pOffFd").value,
     defCap:+$("pDefCap").value, defTgt:+$("pDefTgt").value, defFd:+$("pDefFd").value,
-    fee:+$("pFee").value, gain:+$("pGain").value, loss:+$("pLoss").value};
+    fee:+$("pFee").value, gain:+$("pGain").value, loss:+$("pLoss").value, hold:$("pHold").value};
 }
 function fill(o){
   $("pSeed").value=o.seed; $("pThr").value=o.thr; $("pReg").value=o.reg;
   $("pFrom").value=o.from||BT.d[0]; $("pTo").value=o.to||BT.d[BT.d.length-1];
   $("pOffCap").value=o.offCap; $("pOffTgt").value=o.offTgt; $("pOffFd").value=o.offFd;
   $("pDefCap").value=o.defCap; $("pDefTgt").value=o.defTgt; $("pDefFd").value=o.defFd;
-  $("pFee").value=o.fee; $("pGain").value=o.gain; $("pLoss").value=o.loss;
+  $("pFee").value=o.fee; $("pGain").value=o.gain; $("pLoss").value=o.loss; $("pHold").value=o.hold;
 }
 
 function go(){

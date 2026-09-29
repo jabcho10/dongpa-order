@@ -497,6 +497,7 @@ details.fold[open]>summary{border-bottom-color:var(--line);border-radius:8px 8px
         <div class="kv"><span>수비 LOC 매수 상한</span><span>전일 종가 +3%</span></div>
         <div class="kv"><span>수비 LOC 목표수익률</span><span>매수가 +0.2%</span></div>
         <div class="kv"><span>수비 MOC 강제청산</span><span>매수 후 30영업일째</span></div>
+        <div class="kv"><span>보유 티어가 있을 때 매수 상한</span><span>위 상한과 보유 최저 익절가 −$0.01 중 낮은 값</span></div>
         <div class="kv"><span>모드 기준</span><span>RSI ≥ 50 → 공세</span></div>
       </div>
       <div class="rcol">
@@ -514,7 +515,7 @@ details.fold[open]>summary{border-bottom-color:var(--line);border-radius:8px 8px
         <ol class="seq">
           <li>해당 주의 QQQ 주간 RSI(14)로 당일 모드를 확인한다.</li>
           <li>거래일 시작 시점의 빈 티어 중 가장 낮은 번호를 신규 매수 대상으로 정한다.</li>
-          <li>전 거래일 종가와 당일 모드로 LOC 매수 상한 및 정수 주문 수량을 계산한다.</li>
+          <li>전 거래일 종가와 당일 모드로 LOC 매수 상한을 정하고(보유 티어가 있으면 보유 최저 익절가 −$0.01로 제한), 정수 주문 수량을 계산한다.</li>
           <li>기존 보유 티어의 LOC 목표 매도 및 MOC 강제청산을 당일 종가로 처리한다.</li>
           <li>3단계에서 준비한 LOC 매수 주문의 체결 여부를 당일 종가로 판단한다.</li>
           <li>장 마감 후 모든 티어가 비었으면 사이클 손익을 확정하고 가상 시드를 갱신한다.</li>
@@ -588,9 +589,20 @@ function heldFromDate(d){
   return (i<0||j<0)?null:(i-j+1);
 }
 
+/* LOC 매수 상한 (규칙서 §5.2): 보유 티어가 없으면 전일 종가 +5%(수비 +3%),
+   있으면 그 값과 (보유 최저 익절가 - $0.01) 중 낮은 값 */
+function cent(x){ return Math.round(x*100)/100; }
+function buyCap(prev,off,tiers){
+  var cap=prev*(off?1.05:1.03), m=Infinity, i, t;
+  for(i=0;i<7;i++){ t=tiers[i];
+    if(t.on&&t.px>0) m=Math.min(m,t.px*(t.mode==="off"?1.025:1.002)); }
+  var hc=(m<Infinity)?cent(cent(m)-0.01):Infinity;
+  return {cap:Math.min(cap,hc), byHold:hc<cap};
+}
+
 function calc(){
   var off=S.rsi>=50;
-  var cap=S.prev*(off?1.05:1.03);
+  var bc=buyCap(S.prev,off,S.tiers), cap=bc.cap;
   var alloc=W.map(function(w){return S.vseed*w;});
   var target=-1;
   for(var i=0;i<7;i++){ if(!S.tiers[i].on){ target=i; break; } }
@@ -609,7 +621,7 @@ function calc(){
       due:(t.on&&t.held>=fd),
       sellable:(t.on&&t.held>=1&&t.held<fd) };
   });
-  return {off:off,cap:cap,alloc:alloc,target:target,qty:qty,budget:budget,rows:rows};
+  return {off:off,cap:cap,capByHold:bc.byHold,alloc:alloc,target:target,qty:qty,budget:budget,rows:rows};
 }
 
 function orow(cls,kind,how,tier,px,qty,cond){
@@ -633,7 +645,7 @@ function render(){
   $("nRsi").textContent="기준 "+(S.baseDate||"—")+
     (MARKET.weekEnd?" · RSI는 "+MARKET.weekEnd+" 종가":"");
   $("vCap").textContent=P(c.cap);
-  $("nCap").textContent="전일 종가 "+(c.off?"+5%":"+3%");
+  $("nCap").textContent=c.capByHold?"보유 최저 익절가 −$0.01":"전일 종가 "+(c.off?"+5%":"+3%");
   var pos=0;
   c.rows.forEach(function(r){ if(r.on) pos+=r.qty*S.prev; });
   $("vTotal").textContent=P(S.cash+pos,0);
@@ -821,7 +833,7 @@ function setBase(d,st){
 /* dec 가 없으면 규칙대로, 있으면 사용자가 확인한 대로 처리한다.
    dec = {sell:{티어인덱스:{fill,px}}, buy:{fill,qty,px}} */
 function applyDay(prev, day, dec){
-  var off=day.r>=50, close=day.c, cap=prev*(off?1.05:1.03), ev=[], i, t;
+  var off=day.r>=50, close=day.c, cap=buyCap(prev,off,S.tiers).cap, ev=[], i, t;
 
   var target=-1;                                  /* (2) 장 시작 시점 빈 티어 */
   for(i=0;i<7;i++) if(!S.tiers[i].on){ target=i; break; }
@@ -887,7 +899,7 @@ function applyDay(prev, day, dec){
 
 /* 상태를 바꾸지 않고, 그날 서 있던 주문과 규칙 판정을 계산한다 (확인 화면용) */
 function proposeDay(prev, day){
-  var off=day.r>=50, close=day.c, cap=prev*(off?1.05:1.03), rows=[], i, t;
+  var off=day.r>=50, close=day.c, cap=buyCap(prev,off,S.tiers).cap, rows=[], i, t;
   var target=-1; for(i=0;i<7;i++) if(!S.tiers[i].on){ target=i; break; }
   var qty=0;
   if(target>=0){
