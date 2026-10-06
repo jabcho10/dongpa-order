@@ -242,6 +242,7 @@ details.fold[open]>summary{border-bottom-color:var(--line);border-radius:8px 8px
     <label class="sf">종료 <input type="date" id="pTo"></label>
     <label class="sf">레짐 <select id="pReg"><option value="q">QQQ</option><option value="x">SOXX</option></select></label>
     <label class="sf">RSI 기준 <input type="number" id="pThr" step="1" min="0" max="100"></label>
+    <label class="sf">수수료 편도 % <input type="number" id="pFee" step="0.01" min="0"></label>
     <button type="button" id="bReset">확정값으로</button>
   </div>
 
@@ -312,7 +313,6 @@ details.fold[open]>summary{border-bottom-color:var(--line);border-radius:8px 8px
       <div class="f"><label for="pDefFd">수비 청산 (영업일)</label><input type="number" id="pDefFd" step="1" min="1"></div>
       <div class="f"><label for="pHold">보유 중 상한 (익절가 −$0.01)</label><select id="pHold">
         <option value="on">적용 (확정)</option><option value="off">미적용 (옛 규칙)</option></select></div>
-      <div class="f"><label for="pFee">편도 수수료 (%)</label><input type="number" id="pFee" step="0.01"></div>
       <div class="f"><label for="pGain">이익 복리율 (%)</label><input type="number" id="pGain" step="5"></div>
       <div class="f"><label for="pLoss">손실 복리율 (%)</label><input type="number" id="pLoss" step="5"></div>
     </div>
