@@ -103,6 +103,7 @@ h2{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .setbar .sf{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2);
   white-space:nowrap}
 .setbar input{width:132px}
+.setbar .sn{font-family:var(--mono);font-size:12px;color:var(--ink-2)}
 
 .autobar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .autobar .fin{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2)}
@@ -426,6 +427,9 @@ details.fold[open]>summary{border-bottom-color:var(--line);border-radius:8px 8px
     <label class="sf">기준일 <input type="date" id="iLast"></label>
     <label class="sf">가상 시드 <input type="number" id="iSeed" step="100" min="0"></label>
     <label class="sf">현금 <input type="number" id="iCash" step="100" min="0"></label>
+    <label class="sf">이전 사이클 시작 시드 <input type="number" id="iPSeed" step="100" min="0"></label>
+    <label class="sf">이전 사이클 손익 <input type="number" id="iPPnl" step="10"></label>
+    <span class="sn" id="nPSeed"></span>
   </div>
 
   <section>
@@ -549,6 +553,7 @@ var DEFAULT={
   /* 자동 반영 — base(기준점)에서 매번 다시 계산한다 */
   lastDate:"", auto:true, base:null, snaps:[], log:[],
   cyclePnl:0, cycleOpen:false, cycleTracked:false,
+  pseed:0, ppnl:0,          /* 이전 사이클 시작 가상 시드·손익 -> 가상 시드 */
   tiers:[
     {on:true,  qty:147, px:104.20, mode:"off", held:7},
     {on:true,  qty:152, px:105.60, mode:"off", held:4},
@@ -772,9 +777,17 @@ function render(){
   });
 }
 
+/* 규칙서 §4.2: 다음 가상 시드 = 이전 사이클 시작 시드 + 손익 × (이익 60% / 손실 30%) */
+function nextSeed(ps,pnl){ return Math.round(ps+pnl*(pnl>=0?0.6:0.3)); }
+function seedNote(){
+  $("nPSeed").textContent=S.pseed>0
+    ? "→ "+P(S.pseed,0)+(S.ppnl>=0?" + ":" − ")+P(Math.abs(S.ppnl),0)+" × "+(S.ppnl>=0?"60%":"30%")+" = "+P(nextSeed(S.pseed,S.ppnl),0)
+    : "";
+}
 function mark(){ touched=true; $("saveState").textContent="저장 중…"; save(); }
 function syncFields(){
-  $("iSeed").value=S.vseed; $("iCash").value=S.cash; $("iPrev").value=S.prev;
+  $("iSeed").value=S.vseed; $("iCash").value=S.cash;
+  $("iPSeed").value=S.pseed||""; $("iPPnl").value=S.pseed?S.ppnl:""; seedNote(); $("iPrev").value=S.prev;
   $("iRsi").value=S.rsi; $("iOrder").value=S.orderDate; $("iBase").value=S.baseDate;
 }
 /* 저장되는 입력: 시드·현금 */
@@ -783,6 +796,13 @@ function syncFields(){
     var v=+e.target.value||0;
     S[p[1]]=(p[1]==="vseed")?Math.round(v):v;
     pinCurrent(); mark(); render(); syncAuto(); });
+});
+/* 이전 사이클 시작 시드·손익을 넣으면 가상 시드를 바로 계산한다 */
+[["iPSeed","pseed"],["iPPnl","ppnl"]].forEach(function(p){
+  $(p[0]).addEventListener("input",function(e){
+    S[p[1]]=+e.target.value||0;
+    if(S.pseed>0){ S.vseed=nextSeed(S.pseed,S.ppnl); $("iSeed").value=S.vseed; }
+    seedNote(); pinCurrent(); mark(); render(); syncAuto(); });
 });
 /* 저장되지 않는 입력: 시세·날짜 — 다음 자동 갱신 때 되돌아갑니다 */
 [["iPrev","prev"],["iRsi","rsi"]].forEach(function(p){
@@ -837,15 +857,18 @@ function cloneTiers(ts){
 }
 function grab(){
   return {vseed:S.vseed, cash:S.cash, tiers:cloneTiers(S.tiers),
-          cyclePnl:S.cyclePnl, cycleOpen:S.cycleOpen, cycleTracked:S.cycleTracked};
+          cyclePnl:S.cyclePnl, cycleOpen:S.cycleOpen, cycleTracked:S.cycleTracked,
+          pseed:S.pseed, ppnl:S.ppnl};
 }
 function put(o){
   S.vseed=+o.vseed||0; S.cash=+o.cash||0; S.tiers=cloneTiers(o.tiers||[]);
   S.cyclePnl=+o.cyclePnl||0; S.cycleOpen=!!o.cycleOpen; S.cycleTracked=!!o.cycleTracked;
+  S.pseed=+o.pseed||0; S.ppnl=+o.ppnl||0;
 }
 function setBase(d,st){
   S.base={d:d, vseed:st.vseed, cash:st.cash, tiers:cloneTiers(st.tiers),
-          cyclePnl:st.cyclePnl, cycleOpen:st.cycleOpen, cycleTracked:st.cycleTracked};
+          cyclePnl:st.cyclePnl, cycleOpen:st.cycleOpen, cycleTracked:st.cycleTracked,
+          pseed:st.pseed, ppnl:st.ppnl};
 }
 
 /* dec 가 없으면 규칙대로, 있으면 사용자가 확인한 대로 처리한다.
@@ -908,7 +931,8 @@ function applyDay(prev, day, dec){
   if(S.cycleOpen&&empty){
     if(S.cycleTracked){
       /* 가상 시드는 달러 단위로 반올림한다 — 센트 단위 시드는 주문에 의미가 없다 */
-      S.vseed=Math.round(S.vseed+S.cyclePnl*(S.cyclePnl>=0?0.6:0.3));
+      S.pseed=S.vseed; S.ppnl=Math.round(S.cyclePnl);
+      S.vseed=nextSeed(S.pseed,S.ppnl);
       ev.push({k:"CYCLE",pnl:S.cyclePnl,v:S.vseed});
     } else {
       ev.push({k:"CYCLE?",pnl:0,v:S.vseed});      /* 시작을 못 본 사이클 */
@@ -1005,7 +1029,7 @@ function renderLog(){
       if(x.k==="LOC")   return '<b class="ls">익절</b> 티어'+x.t+' '+N(x.q)+'주 @ '+P(x.p);
       if(x.k==="MOC")   return '<b class="lm">청산</b> 티어'+x.t+' '+N(x.q)+'주 @ '+P(x.p);
       if(x.k==="CYCLE") return '<b class="lc">사이클 종료</b> 손익 '+P(x.pnl,0)+' · 가상 시드 '+P(x.v,0);
-      return '<b class="lc">사이클 종료</b> 시작 시점을 몰라 가상 시드를 자동 갱신하지 않았습니다 — 직접 확인하세요';
+      return '<b class="lc">사이클 종료</b> 시작 시점을 몰라 가상 시드를 자동 갱신하지 않았습니다 — 이전 사이클 시작 시드·손익을 입력하세요';
     });
     return '<div class="lrow"><span class="ld">'+e.d+'</span><span>'+parts.join(' · ')+'</span></div>';
   });
@@ -1169,7 +1193,7 @@ function save(){
    읽으므로, 자동 갱신된 종가가 예전에 저장된 값에 덮이지 않습니다. */
 function adopt(o){
   if(!o||!Array.isArray(o.tiers)||o.tiers.length!==7) return false;
-  ["vseed","cash","cyclePnl"].forEach(function(k){ if(typeof o[k]==="number") S[k]=o[k]; });
+  ["vseed","cash","cyclePnl","pseed","ppnl"].forEach(function(k){ if(typeof o[k]==="number") S[k]=o[k]; });
   S.vseed=Math.round(S.vseed);          /* 예전 저장본의 소수점 시드를 정리 */
   ["auto","cycleOpen","cycleTracked"].forEach(function(k){ if(typeof o[k]==="boolean") S[k]=o[k]; });
   if(typeof o.lastDate==="string") S.lastDate=o.lastDate;
@@ -1182,7 +1206,8 @@ function adopt(o){
 }
 function userState(){ return {vseed:S.vseed, cash:S.cash, tiers:S.tiers,
   lastDate:S.lastDate, auto:S.auto, base:S.base, snaps:S.snaps, log:S.log,
-  cyclePnl:S.cyclePnl, cycleOpen:S.cycleOpen, cycleTracked:S.cycleTracked}; }
+  cyclePnl:S.cyclePnl, cycleOpen:S.cycleOpen, cycleTracked:S.cycleTracked,
+          pseed:S.pseed, ppnl:S.ppnl}; }
 try{
   var raw=localStorage.getItem(LS);
   if(raw&&adopt(JSON.parse(raw))) touched=true;
