@@ -14,14 +14,17 @@ SOXL 7티어 순환 매매(동파 전략)의 당일 LOC·MOC 주문을 산출하
 | `update_market.py` | 시세 산출 및 `market.json` 갱신 |
 | `backtest.html` | 백테스트 (GitHub Pages가 서빙) |
 | `backtest_data.js` | 백테스트 입력 — 분할 복원 종가·전일 종가·주간 RSI 스냅샷 |
+| `update_backtest_data.py` | `backtest_data.js`에 새 거래일 이어붙이기 (워크플로가 실행) |
 | `.github/workflows/update-market.yml` | 화~토 07:07 KST 예약 실행 |
 
 페이지는 같은 폴더의 `market.json`을 읽는다. 읽지 못하면 HTML에 내장된 대체값으로 동작하므로
 어떤 경우에도 주문 산출은 가능하다.
 
-백테스트 페이지는 같은 폴더의 `backtest_data.js`를 읽는다. 이 파일은 워크플로가 갱신하지 않는
-고정 스냅샷이며, 확정 규칙 리포지토리에서 `python make_backtest_data.py`로 다시 만들어 복사해
-넣는다. 페이지 머리말에 데이터 구간이 찍히므로 기준일은 화면에서 확인할 수 있다.
+백테스트 페이지는 같은 폴더의 `backtest_data.js`를 읽는다. 과거 구간은 확정 규칙 리포지토리의
+`make_backtest_data.py`가 만든 스냅샷이고, 이후 거래일은 워크플로가 시세 갱신 때
+`update_backtest_data.py`로 **이어붙인다(append-only — 기존 행은 고치지 않는다).**
+겹치는 구간 종가가 0.5% 넘게 달라지면(주식분할 등) 아무것도 쓰지 않고 실패하므로, 그때는
+`make_backtest_data.py`로 다시 만들어 넣는다. 페이지 머리말에 데이터 구간이 찍힌다.
 
 ## 자동 갱신
 

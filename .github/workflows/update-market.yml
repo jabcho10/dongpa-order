@@ -41,17 +41,31 @@ jobs:
           echo "code=$code" >> "$GITHUB_OUTPUT"
           echo "종료코드 $code (0=갱신 10=변경없음 1=실패)"
 
-      - name: 갱신 실패
-        if: steps.market.outputs.code == '1'
+      # 주문 지시서와 따로 본다 — 백테스트 쪽이 실패해도 시세 갱신은 커밋한다.
+      - name: 백테스트 데이터 갱신
+        id: bt
         run: |
-          echo "::error::시세 갱신 실패 - market.json 을 바꾸지 않았습니다. 페이지는 이전 종가를 계속 표시하며, 4일이 지나면 경고 배너가 뜹니다."
-          exit 1
+          python update_backtest_data.py && code=0 || code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "종료코드 $code (0=갱신 10=변경없음 1=실패)"
 
       - name: 커밋 및 배포
-        if: steps.market.outputs.code == '0'
+        if: steps.market.outputs.code == '0' || steps.bt.outputs.code == '0'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add market.json
+          git add market.json backtest_data.js
           git commit -m "시세 갱신 $(date -u +%Y-%m-%d)"
           git push
+
+      - name: 백테스트 데이터 갱신 실패
+        if: steps.bt.outputs.code == '1'
+        run: |
+          echo "::error::백테스트 데이터 갱신 실패 - backtest_data.js 를 바꾸지 않았습니다. 주식분할이면 make_backtest_data.py 로 다시 만들어 넣으세요."
+          exit 1
+
+      - name: 갱신 실패
+        if: always() && steps.market.outputs.code == '1'
+        run: |
+          echo "::error::시세 갱신 실패 - market.json 을 바꾸지 않았습니다. 페이지는 이전 종가를 계속 표시하며, 4일이 지나면 경고 배너가 뜹니다."
+          exit 1
